@@ -1,0 +1,3 @@
+*.pkl
+__pycache__
+pickPocket.egg-info

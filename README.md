@@ -3,24 +3,37 @@ An ad-hoc hierarchical clustering algorithm able to extract and rank pockets. Ex
 ## Details:
 ### Clustering:
 This script performs a hierarchical merging of "(regular) spherical probes" extracted from several calls to the NanoShaper software. NanoShaper is called externally by the script. The clustering process resemble to a single-linkage clustering in the sense that only distances between single probes matter rather than global aggregate information such as the center of mass. However, special rules are present to perform such aggregation.
+
+**Free parameters**
+[fill..]
+DEFAULT: alpha =0, beta=0.6, rp_max=3 (Angstroms)
 ### Ranking:
 Ranking is based on Isolation Forest (IF) anomaly detector. IF is provided as a scikit-learn object previously trained and loaded from a  provided binary file (within)
 
 ## Requirements:
- - The NanoShaper executable is provided and must be installed has descibed in "NS_installer"
- - (Reccomended) Recompile locally the shared library. Instructions and source code in "C_tools"
+ - The NanoShaper executable is provided and is linked to the provided library folder. Relinking could be necessary. To do so use the install_script within *install binaries* folder and follow the prompted instructions.
+ - (Reccomended) Recompile locally the shared library. This is done by running the install_script and following the instructions (gcc required).
+ - 
+ ### Python modules:
+- numpy
 
 ## Instructions:
 
 ### Simple (use directly an executable)
 python3 -m pickPocket <file.pqr>
 
-TODO: more like output produced etc..
+**OUTPUTS**:
+[tofill..]
 
 ### Advanced
-Extra set up files: config and input files.. Explained below
+Extra set up files: *config.txt* and *input.prm* files: Samples are given in the script folder.
+An example of advanced scripting is provided by loop.py together with a sample structure folder containing structure ligand pairs and ligandMap.txt file. Within input.prm:
+**Action = analysis**:
+Stores hitting statistics and features (in a binary file) over several structure-ligands pairs of all generalted pockets according to the provided clustering parameters (can loop over the parameters as well).
+**Action = test**:
+Evaluate ranking power looping over structures and ligands
 
-Examples of advanced use are provided into the scripts folder with related advanced input file
+Config.txt is only used to overwrite default alpha, beta and maximum probe radius clustering parameters. Will be dropped in future implementations.
 
 **The input file**
 

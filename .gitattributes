@@ -1,0 +1,4 @@
+pickPocket/trainedModels/IF10_chemistryS.pkl filter=lfs diff=lfs merge=lfs -text
+pickPocket/trainedModels/IF10_geometryL.pkl filter=lfs diff=lfs merge=lfs -text
+pickPocket/trainedModels/IF10_geometryS.pkl filter=lfs diff=lfs merge=lfs -text
+pickPocket/trainedModels/IF10_chemistryL.pkl filter=lfs diff=lfs merge=lfs -text

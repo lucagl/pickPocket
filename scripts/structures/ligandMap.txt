@@ -1,0 +1,124 @@
+# ************** PDB ligand Map *************** 
+#	Created using '*lfetch-MOAD_ligandFinder*
+#     https://github.com/lucagl/MOAD_ligandFinder.git
+# Ligand validation based on binding MOAD database.
+# Author L. Gagliardi, Istituto Italiano di Tecnologia
+# LOCAL TIME = 2021-07-02 18:10:40
+# --------------
+## MANUALLY CREATED ENTRIES
+1	1dwd	# --> warning produced in pqr conversion
+MID_H1
+1	1blh
+FOS_A1
+2	1phd
+HEM_A1
+#PIW_A1
+2	1ulb
+GUN_A1
+#SO4_A1 not valid from eye inspection
+1	6rsa  #<-- Heavily corrected pdb from Deuterium preventing pqr building..
+UVC_A1
+2	1inc
+ICL_A1
+#SO4_A2 not valid from eye inspection
+1	1stp
+BTN_A1
+1	3mth
+MPB_A1
+1	1acj
+THA_A1
+1	3gch   #--> corrected for error in pqr conversion
+OAC_C1
+1	1apu
+IVA_VAL_32L_I4
+#####
+4	1fbp
+F6P_A336
+F6P_B336
+AMP_A337
+AMP_B337
+1	1mrg
+ADN_A300
+1	1gca
+GAL_A350
+2	1ivd
+ST1_A471
+ST1_B471
+1	2ctc
+HFA_A309
+2	4phv
+VAC_B100
+VAC_B101
+1	7cpa
+FVF_A309
+1	1bid
+UMP_A603
+4	5cna
+MMA_A238
+MMA_B238
+MMA_C238
+MMA_D238
+1	1rob
+C2P_A126
+1	2sim
+DAN_A800
+2	1imb	  # --> a warning was produced in pdb2pqr conversion.
+LIP_A279
+LIP_B279
+1	1pdz
+PGA_A439
+1	1a6w
+NIP_H430
+1	1mtw
+DX9_A999
+1	1hyt
+BZS_A807
+1	1hew
+NAG_NAG_NAG_B1
+1	1qpe
+PP2_A1904
+1	3ptb
+BEN_A1
+2	1srf
+MTB_A300
+MTB_B300
+1	1hfc
+PLH_A280
+1	2pk4
+ACA_A100
+2	4dfr
+MTX_A161
+MTX_B162
+2	1cdo
+NAD_A375
+NAD_B375
+1	1byb	  # --> a warning was produced in pdb2pqr conversion.
+GLC_GLC_GLC_GLC_B1
+2	5p2p
+DHG_A126
+DHG_B127
+1	1snc
+THP_A151
+1	1pso
+IVA_VAL_VAL_STA_ALA_STA_I1
+1	1ida
+0PO_B100
+1	2ifb
+PLM_A133
+1	1okm
+SAB_A555
+2	1igj
+DGX_B228
+DGX_D228
+1	2tmn
+0FA_E322
+1	1rbp	  # --> a warning was produced in pdb2pqr conversion.
+RTL_A183
+1	2h4n
+AZM_A264
+1	1rne
+C60_A350
+2	2ypi
+PGA_A249
+PGA_B249
+# 1	1apu	 <-- Unable to extract ligands. Check error log. IGNORING

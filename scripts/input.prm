@@ -1,0 +1,23 @@
+################### INPUT FILE FOR NS POCKET CLUSTERING #############
+#IMPORTANT NOTES:
+#	- delta_alpha, delta_beta, delta_rp have default values provided of 0.1. But these can be overwritten
+#	- rpMIN is bounded to be at most the hardcoded radius for conventional pocket exit.
+Action = test
+#light mode = 0
+#INPUT FILE FOR ANALYSIS
+
+alphaMIN = 0.0
+alphaMAX = 0.0
+betaMAX = 0.6
+betaMIN = 0.6
+rpMIN = 3.0
+rpMAX = 3.0
+#delta_alpha = 0.1
+delta_beta = 0.1
+delta_rp = 0.1
+
+#Folder containing pdb files must be named structures
+#Folder containing NS executable and configuration file must be named tmp 
+pqr file = 6gj6 
+largeP filter =1
+build structure triang=true

@@ -5,36 +5,58 @@ An ad-hoc hierarchical clustering algorithm able to extract and rank pockets. Ex
 This script performs a hierarchical merging of "(regular) spherical probes" extracted from several calls to the NanoShaper software. NanoShaper is called externally by the script. The clustering process resemble to a single-linkage clustering in the sense that only distances between single probes matter rather than global aggregate information such as the center of mass. However, special rules are present to perform such aggregation.
 
 **Free parameters**
-[fill..]
+
 DEFAULT: alpha =0, beta=0.6, rp_max=3 (Angstroms)
+
+**alpha**: How "easy" is to cluster among them probes of the same radius (larger--> wider clusters laterally. Better for large shallow sites)
+
+**beta**: How "easy" is to cluster among them probes of different radius (larger--> deeper ramified custer)
+
+**rp_max**: Large probe radius. The minimum is 1.4 (water molecule) and the series of clustered sphere is [1.4,..,rp_max] by increments of 0.1.
 ### Ranking:
 Ranking is based on Isolation Forest (IF) anomaly detector. IF is provided as a scikit-learn object previously trained and loaded from a  provided binary file (within)
 
 ## Requirements:
  - The NanoShaper executable is provided and is linked to the provided library folder. Relinking could be necessary. To do so use the install_script within *install binaries* folder and follow the prompted instructions.
  - (Reccomended) Recompile locally the shared library. This is done by running the install_script and following the instructions (gcc required).
- - 
+ 
  ### Python modules:
 - numpy
+## Installation
+run **pip3 install pickPocket**
 
+Then the lirary should be available for import (see advanced use) or use it as an executable (recomended)
 ## Instructions:
 
 ### Simple (use directly an executable)
-python3 -m pickPocket <file.pqr>
+**python3 -m pickPocket \<file.pqr\>**
 
 **OUTPUTS**:
-[tofill..]
+
+Note: the numbering reflects the ranking.
+
+- logfile --> contains recap of info (same printed on stdout)
+- output_\<pqr_name\>.txt --> summary of ranked pockets (scores, subpockets etc..)
+- errorLog.txt --> errors and warnings
+- Folder 6gj6_Pfiles: contains:
+ - clusterPocket\<pocket_number\>.pqr --> dummy "atoms" to represent the probe spheres. Compatible with VMD.
+ - p\<pocket_number\>.off --> the triangulation of the above. Compatible with VMD
+ - p\<pocket_number\>_atm.pqr --> the protein surface atoms belonging to the pocket envelope (Recomended for practical use). Compatible with VMD
+ - infoPocket\<pocket_number>\.txt --> info on residues and (pseudo) mouths with relative normals. Note: you might want to post-process it with functions.getEntrance()
+ - \<structure_name\>.vert and .face for nice triangulation in VMD of the structure. This is a "classical" NanoShaper output.
 
 ### Advanced
 Extra set up files: *config.txt* and *input.prm* files: Samples are given in the script folder.
-An example of advanced scripting is provided by loop.py together with a sample structure folder containing structure ligand pairs and ligandMap.txt file. Within input.prm:
+An example of advanced scripting is provided by loop.py together with a sample *structure* folder containing structure-ligand pairs and a ligandMap.txt file. 
+
+In input.prm:
+
 **Action = analysis**:
 Stores hitting statistics and features (in a binary file) over several structure-ligands pairs of all generalted pockets according to the provided clustering parameters (can loop over the parameters as well).
+
 **Action = test**:
 Evaluate ranking power looping over structures and ligands
 
 Config.txt is only used to overwrite default alpha, beta and maximum probe radius clustering parameters. Will be dropped in future implementations.
 
-**The input file**
 
-**The config file**

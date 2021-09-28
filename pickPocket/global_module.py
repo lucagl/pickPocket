@@ -32,7 +32,7 @@ delta_rp = 0.1  #THIS IS A PARAMETER WITHIN THE CLUSTERING ALGORITHM
 largeP=2
 tollerance = 5.e-2 
 
-accTriang = False
+accTriang = True
 
 ##########
 PI = np.pi

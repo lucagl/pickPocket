@@ -11,6 +11,7 @@ import os
 import subprocess
 
 inlineCall = False
+keep = 10
 # INITIALIZATIONS #
 
 
@@ -111,18 +112,20 @@ err,pList=clustering.build(alpha,beta,rpMAX = rp_max)
 
 
 err.handle(errFile)
-logFile.write("\n\n Number of (large) pockets found: "+str(len(pList)))
+
 
 #also performs score and size filtering 
 if(pList):
     # err,pList=clustering.printInfo_old(saveSpheres = True,largeP=global_module.largeP)
-    err,pList_ranked = clustering.printInfo(saveSpheres=True,type="IF10",mode=1)
+    err,pList_ranked = clustering.printInfo(saveSpheres=True,keep=keep,type="IF10",mode=1)
     logFile.write("\n Detailed info in protein output file("+global_module.pdbFolder_path+") and status.txt file("+global_module.runFolder_path)
     err.handle(errFile)
 else:
     print("NO pockets found with current parameters!")
 if(global_module.accTriang):
     clustering.VMD_accTriang()
+
+logFile.write("\n\n Number of (large) pockets found: "+str(len(pList)) + " of which %d were kept in ranking"%keep)
 
 
 t= main_crono.get()

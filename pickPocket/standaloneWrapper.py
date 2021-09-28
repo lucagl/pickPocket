@@ -687,7 +687,7 @@ class NS_clustering(object):
 
 
     def printInfo(self,keep=10,mode = 1, type = "IF", saveSpheres=False,getRes=True,useCNN = False):
-
+        from collections import defaultdict
         #TODO: If subpocket high in ranking, print it instead of master? High in ranking means that is among first 10...
         err=Error()
 
@@ -716,21 +716,21 @@ class NS_clustering(object):
 
         rankedIndexes = mainScore[0]
         rankedIndexesSub = subScore[0]
-
+        scoreMaster = mainScore[1]
+        
         print("%d CANDIDATE POCKETS" %(len(self.filteredP)))
 
-        print(rankedIndexes[:10])
-        print(mainScore[1][:10])
-        print()
-        # print(rankedIndexesSub)
-        # print(subScore[1])
-        # input("")
-        # print("HERE")
+        # print(rankedIndexes[:10])
+        # print(scoreMaster[:10])
+
+        # print(rankedIndexesSub[:10])
+        # print(subScore[1][:10])
+        
 
         resultFile=open(self.pdbFolder_path+"/"+"output_"+self.pFilename+".txt",'w')
         # resultFile.write("**RANKED POCKETS FOUND FOR "+self.pFilename+" **  \n")
         resultFile.write("%d CANDIDATE POCKETS FOUND FOR "%(len(self.filteredP))+self.pFilename+" **  \n")
-        resultFile.write("**RANKED POCKETS**  \n")
+        resultFile.write("**RANKED POCKETS**")
         print("First " +str(keep) + " ranked pockets:\n")
         try:
             if not os.path.exists(self.save_path):
@@ -743,6 +743,7 @@ class NS_clustering(object):
 
         
         selfContained = set()
+        redundantList = defaultdict(list)
         # skippedSet=set()
         #OBS in the following pi is the master pocket index
         k=0 # runs on sorted indexes
@@ -751,9 +752,10 @@ class NS_clustering(object):
         kept=[]
         while((r<=keep) and (k<rankedIndexes.size)):
             sub=[] #NOTE: In general don't print subs in only one
-            print("\nindex = ", rankedIndexes[k])
+            # print("\nindex = ", rankedIndexes[k])
             pi,si = map_direct[rankedIndexes[k]]
-            print(pi,si)
+            # print(pi,si)
+            #       SUBPOCKET DIRECTLY RANKED
             if(si is not None):
                 print("I'm a subpocket")
                 if(pi in selfContained):
@@ -768,11 +770,15 @@ class NS_clustering(object):
                 kept.append(p)
                 # ++++ INFO ++++
                 print("Pocket number",r)
-                resultFile.write("\n\n Pocket number" +str(r))
-                print(featureList[map_reverse[(pi,si)]])
+                print("Score = ",scoreMaster[k])
+                resultFile.write("\nPocket number" +str(r))
+                resultFile.write("\n Score = %.2f\n"%scoreMaster[k])
+
+
+                # print(featureList[map_reverse[(pi,si)]])
                 
                 ### check correct indexing:
-                print(p['node'].count)
+                # print(p['node'].count)
                 
                 ## TODO: change with a simple renaming: the triangulation was already performed for volume computation..
                 err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path) #to save triangulation of top ranked pockets 
@@ -789,9 +795,10 @@ class NS_clustering(object):
                 # correctedRanking = rank-len(skippedSet)
                 n_subs = len(sp)
                 if(n_subs==1):
-                    print("Single subpocket, master pocket in black list :)")
+                    print("Single subpocket, master pocket in black list")
                     selfContained.add(pi)
                 else:
+                    redundantList[pi].append(r)
                     ind = map_reverse[(pi,None)]
                     rank = np.where(rankedIndexes == ind)[0][0]+1
                     print("\n **INFO: is subpocket of (absolute rank): p"+str(rank)) 
@@ -800,6 +807,7 @@ class NS_clustering(object):
 
                 
             else:
+                #       MASTER POCKET   
                 # Here the ranked pocket could contain subpockets
                 print("I'm a parent pocket")
                 if(pi in selfContained):
@@ -811,9 +819,14 @@ class NS_clustering(object):
                     #PROBLEM <------
                     # **** What about if all its subpockets did hit? I am "conduming" a position in the ranking.. **
                     continue
-                
-
+                if(pi in redundantList):
+                    #One of its subpockets is higher in ranking --> point the user to it
+                    print("NOTE: Is a larger container of Pocket(s) "
+                    +redundantList[pi].tpString().replaceAll("[\\[\\]]", "").replaceAll(",", "&"))
+                    resultFile.write("\nNOTE: Is a larger container of Pocket(s) "
+                    +redundantList[pi].tpString().replaceAll("[\\[\\]]", "").replaceAll(",", "&"))
                 selfContained.add(pi)
+                
                 p = self.filteredP[pi]
                 
                 # ** Only for saving methods
@@ -828,14 +841,15 @@ class NS_clustering(object):
                 if(n_subs==1): # promote it if is high in ranking CHECK <-----
                     ind = map_reverse[(pi,0)]
                     rank = np.where(rankedIndexesSub == ind)[0][0] #- len(skippedSet) # without correction to be more exigent
-                    print(rank)
-                    print(subScore[1][rank])
+                    # print(rank)
+                    # print(subScore[1][rank])
                     #if(rank<10):
                     if(np.round(subScore[1][rank],2)<0.5): 
                         # so is independent on eventual correction on ranking 
                         #Very much prone to accept subpockets, esecially for EIF where scores are generally lower
-                        print("Subpocket elected as better representative of master pocket..")
+                        print("Single subpocket elected as better representative of master pocket..")
                         print("SubRank (not accounting for rearrangements):",rank+1)
+                        print("SubScore = ",subScore[1][rank])
                         p = p['subpockets'][0]
                         sm = [p['node']]
                         bm= p['btlnks']       
@@ -845,10 +859,12 @@ class NS_clustering(object):
                 kept.append(p)
                 # ++++ INFO ++++
                 print("Pocket number",r)
-                resultFile.write("\n\n Pocket number" +str(r))
-                print(featureList[map_reverse[(pi,si)]])
+                print("(Master pocket) Score = ",scoreMaster[k])
+                resultFile.write("\nPocket number" +str(r))
+                resultFile.write("\n Score = %.2f\n"%scoreMaster[k])
+                # print(featureList[map_reverse[(pi,si)]])
                 ### check:
-                print(p['node'].count)
+                # print(p['node'].count)
                 
                 # err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path)
                 # if(err.value==1):
@@ -857,7 +873,8 @@ class NS_clustering(object):
                 
                 if(n_subs>1):
                     sub = [] # container for printing method [(i['node'],i['btlnks']) for i in p['subpockets']] 
-                    print(str(n_subs)+" Subpockets (ranked):")
+                    print(str(n_subs)+" Subpockets:")
+                    resultFile.write(" Subpockets: \n")
                     rank=[]
                     for s in range(n_subs):
                         try:
@@ -867,17 +884,18 @@ class NS_clustering(object):
                             rank.append(numberPockets + 1) # make sure is at the bottom of the rank
                             subScore[1][numberPockets + 1] = 1
                     indS = np.argsort(rank)
-                    print("INDS=",indS)
-                    print(rank)
+                    # print("INDS=",indS)
+                    # print(rank)
                     good_Subs=0
                     for i,sub_i in enumerate(indS):
                         if(subScore[1][rank[sub_i]]<0.5):
                             good_Subs+=1
-                            print("Sub ", i, "Absolute Ranking (not accounting for rearrangements ) = ", rank[sub_i] +1 )
-                            print((pi,sub_i),"ind="+str(map_reverse[(pi,sub_i)]),'score',subScore[1][rank[sub_i]])
-                            print(featureList[map_reverse[(pi,sub_i)]])
+                            print("Sub ", i, "Absolute subRanking (not accounting for rearrangements ) = ", rank[sub_i] +1 )
+                            print((pi,sub_i),"ind="+str(map_reverse[(pi,sub_i)]),'subScore',subScore[1][rank[sub_i]])
+                            resultFile.write("  Subpocket %d. subScore = %.2f\n"%(i,subScore[1][rank[sub_i]]))
+                            # print(featureList[map_reverse[(pi,sub_i)]])
                             sp=p['subpockets'][sub_i]['node']
-                            err = sp.buildTriang(triangName='sub'+str(r)+'_'+str(sub_i+1),savePath= self.save_path)
+                            err = sp.buildTriang(triangName='sub'+str(r)+'_'+str(i+1),savePath= self.save_path)
                             sub.append((sp,p['subpockets'][sub_i]['btlnks']))
                             if(err.value==1):
                                 # print("Increase Self Intersection Grid to compute this pocket!")
@@ -885,6 +903,7 @@ class NS_clustering(object):
                                 err.info = err.info+ "--> Cannot perform triangulation of sub%d_%d" %(r,sub_i)
                         else:
                             print("BAD SUBPOCKET skipping")
+                            resultFile.write("  Subpocket %d skipped since score larger than 0.5 (anomaly)\n"%i)
                     if(good_Subs==1):
                         print("Only one good subpocket--> Promoted to master")
                         # print("Consider only the subpocket")
@@ -892,6 +911,8 @@ class NS_clustering(object):
                         sm = [p['node']]
                         bm= p['btlnks']   
                         sub=[]
+                        resultFile.write("  Only one (good) subpocket--> Promoted to master")
+                    
                 err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path)
                 if(err.value==1):
                     print("<<WARNING>> Cannot perform triangulation of p%d" %k)

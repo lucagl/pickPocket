@@ -755,10 +755,10 @@ def saveP(fileNumbering,savingDir,cluster,isPQR,subPockets = []):
             coordinates = np.asarray(sub.getCoordinates())
             n = sub.count
             if(not isPQR):
-                filename = name+"_sub"+str(k)+".txt"
+                filename = name+"_sub"+str(k+1)+".txt"
                 np.savetxt(filename,(np.array(coordinates)),delimiter = '\t',header="Number of spheres:" + str(n))
             else:
-                filename = name+"_sub"+str(k)+".pqr"
+                filename = name+"_sub"+str(k+1)+".pqr"
                 outFile = open(filename,'w')
                 x = coordinates[:,0]
                 y = coordinates[:,1]
@@ -924,10 +924,10 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
         #subPockets here is a list of cluster nodes
         for k, (sub,btlnks) in enumerate(subPockets):
             
-            filename = savingDir+"/infoSub"+str(fileNumbering)+'_'+str(k)+".txt"
+            filename = savingDir+"/infoSub"+str(fileNumbering)+'_'+str(k+1)+".txt"
             outFile=open(filename,'w')
             
-            filename = savingDir+"/sub"+str(fileNumbering)+'_'+str(k)+"_atm.pqr"
+            filename = savingDir+"/sub"+str(fileNumbering)+'_'+str(k+1)+"_atm.pqr"
             outFileP=open(filename,'w')
 
             rad = sub.r

@@ -14,7 +14,7 @@ DEFAULT: alpha =0, beta=0.6, rp_max=3 (Angstroms)
 
 **rp_max**: Large probe radius. The minimum is 1.4 (water molecule) and the series of clustered sphere is [1.4,..,rp_max] by increments of 0.1.
 ### Ranking:
-Ranking is based on Isolation Forest (IF) anomaly detector. IF is provided as a scikit-learn object previously trained and loaded from a  provided binary file (within)
+Ranking is based on Isolation Forest (IF) anomaly detector. IF is provided as a scikit-learn object previously trained and loaded from a  provided binary file (in pickPocket/trainedModels)
 
 ## Requirements:
  - The NanoShaper executable is provided and is linked to the provided library folder. Relinking could be necessary. To do so use the install_script within *install binaries* folder and follow the prompted instructions.
@@ -28,7 +28,7 @@ run **pip3 install pickPocket**
 Then the lirary should be available for import (see advanced use) or use it as an executable (recomended)
 ## Instructions:
 
-### Simple (use directly an executable)
+### Simple
 **python3 -m pickPocket \<file.pqr\>**
 
 **OUTPUTS**:
@@ -48,7 +48,7 @@ Note: the numbering reflects the ranking.
 
 ### Advanced
 Extra set up files: *config.txt* and *input.prm* files: Samples are given in the script folder.
-An example of advanced scripting is provided by loop.py together with a sample *structure* folder containing structure-ligand pairs and a ligandMap.txt file. 
+An example of advanced scripting is provided by scripts/loop.py together with a sample *structure* folder containing structure-ligand pairs and a ligandMap.txt file. 
 
 In input.prm:
 

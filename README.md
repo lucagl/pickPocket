@@ -20,9 +20,13 @@ Ranking is based on Isolation Forest (IF) anomaly detector. IF is provided as a 
  - The NanoShaper executable is provided and is linked to the provided library folder. Relinking could be necessary. To do so use the install_script within *install binaries* folder and follow the prompted instructions.
  - (Reccomended) Recompile locally the shared library. This is done by running the install_script and following the instructions (gcc required).
  
+ To run the install script just move into *install binaries* folder and: *./install_script* (it might be necessary to change permissions: *chmod +x install_script*)
+ 
  ### Python modules:
 - numpy
 ## Installation
+First check **Requirements**
+
 run **pip3 install pickPocket**
 
 Then the lirary should be available for import (see advanced use) or use it as an executable (recomended)

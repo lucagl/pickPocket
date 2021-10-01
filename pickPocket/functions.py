@@ -718,8 +718,12 @@ def fetchRes(filename):
 
             # else:
             #     number = int(number)
-            content = {'resName':lineg[nameInd],'resNum':lineg[resInd],'atomNumber':int(lineg[1]),'resAtom': lineg[atomInd],'resChain':lineg[chainInd],
-            'charge':float(lineg[chargeInd]),'coord':list(map(float, lineg[coordInd:coordInd+3])),'radius':float(lineg[rInd])}
+            if(isChainID):
+                content = {'resName':lineg[nameInd],'resNum':lineg[resInd],'atomNumber':int(lineg[1]),'resAtom': lineg[atomInd],'resChain':lineg[chainInd],
+                'charge':float(lineg[chargeInd]),'coord':list(map(float, lineg[coordInd:coordInd+3])),'radius':float(lineg[rInd])}
+            else:
+                content = {'resName':lineg[nameInd],'resNum':lineg[resInd],'atomNumber':int(lineg[1]),'resAtom': lineg[atomInd],
+                'charge':float(lineg[chargeInd]),'coord':list(map(float, lineg[coordInd:coordInd+3])),'radius':float(lineg[rInd])}
             resMap.append(content)
             # print(content)
     

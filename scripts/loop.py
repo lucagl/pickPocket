@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 import numpy as np
 
 from pickPocket import *
@@ -25,6 +26,10 @@ class ContinueI(Exception):
 def main():
     inlineCall = False
     # INITIALIZATIONS #
+    runPath = 'temp'
+    if not os.path.exists(runPath):
+        os.makedirs(runPath)
+        subprocess.call('cp '+global_module.pathTo_NS_ex+'* '+runPath+"/", shell=True)
     if(len(sys.argv)>1):
         import re
         inputFile  = str(sys.argv[1])

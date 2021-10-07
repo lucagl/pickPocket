@@ -917,16 +917,16 @@ class NS_clustering(object):
                 if(err.value==1):
                     print("<<WARNING>> Cannot perform triangulation of p%d" %k)
                     err.info =err.info+ "--> Cannot perform triangulation of p%d" %k
-            try:
-                if(saveSpheres):
-                    saveP(r,self.save_path,p['node'],True,subPockets=sub)
-                if(getRes):
-                    saveRes(r,self.save_path,p['node'],self.protein.resMap,self.protein.atoms,bmouth = bm,smouth = sm,subPockets = sub)
-                    # saveResSimple(r,self.save_path,p['node'],self.protein.resMap)
-            except Exception as info:
-                err.value=1
-                err.info = str(info.args) + " Causing unability to save pocket.pqr files!"
-                return err
+            # try:
+            if(saveSpheres):
+                saveP(r,self.save_path,p['node'],True,subPockets=sub)
+            if(getRes):
+                saveRes(r,self.save_path,p['node'],self.protein.resMap,self.protein.atoms,bmouth = bm,smouth = sm,subPockets = sub)
+                # saveResSimple(r,self.save_path,p['node'],self.protein.resMap)
+            # except Exception as info:
+            #     err.value=1
+            #     err.info = str(info.args) + " Causing unability to save pocket.pqr files!"
+            #     return err
             k+=1
             r+=1
         print("# skipped :",skipped)

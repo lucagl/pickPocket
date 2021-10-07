@@ -774,6 +774,8 @@ def saveP(fileNumbering,savingDir,cluster,isPQR,subPockets = []):
 
     return;
 
+
+
 def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth = None, subPockets = []):
     """
      Saves on file the list of atoms relative to the input cluster
@@ -790,7 +792,7 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
     resList=np.asarray(cluster.getAtomsIds())
     resList = np.unique(resList) #unique list of tangent atoms to the pocket (1D, the triplets get flattened)
 
-    pocket_tAtoms = atoms[resList,:] #Protein atoms tangent to the pocket
+    # pocket_tAtoms = atoms[resList,:] #Protein atoms tangent to the pocket
 
 
     n = len(resList)
@@ -812,10 +814,15 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
     for r in resList:
         resid = resMap[r]['resNum']
         rname = resMap[r]['resName']
-        rChain = resMap[r]['resChain']
+        try:
+            rChain = resMap[r]['resChain']
+        except KeyError:
+            rChain = 'A'
         # ratom = resMap[r]['resAtom']
+        outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],rname,rChain,resid,
+        resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
         if((resid,rname,rChain) in content):
-            continue
+            pass
         else:
         # writeList.append(ratom+"\t"+rname+"\t"+str(resid)+'\n')
             writeList.append(resid+"\t"+rname+' '+rChain+'\n')
@@ -825,22 +832,10 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
     outFile.write("Number of residues %d\n" % len(content))
     outFile.writelines(writeList)
 
-    
-    # outFileP.write("# Number of protein atoms %d\n" % n)
-    # writeList.append(str(pocket_tAtoms))
-
-    #                           #FOR VMD ...
-    # x = pocket_tAtoms[:,0]
-    # y = pocket_tAtoms[:,1]    
-    # z = pocket_tAtoms[:,2]
-    # r = pocket_tAtoms[:,3]
-    # for i in range(n):
-    #     outFileP.write("ATOM\t%5d  %-3s %3s %c%4d    %8.3f%8.3f%8.3f%8.4f%8.4f\n" % (i,"C","NSR",'A',1,x[i],y[i],z[i],0.,r[i]) )
-    # print('here')
-    for r in resList:
-        # print("ATOM\t%5d  %-3s %3s %c%4d    %8.3f%8.3f%8.3f%8.4f%8.4f\n" % (r,resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resChain'],resMap[r]['resNum'],resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
-        outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resChain'],resMap[r]['resNum'],
-        resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
+    # for r in resList:
+        
+    #     outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resChain'],resMap[r]['resNum'],
+    #     resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
     
     
 
@@ -876,7 +871,10 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
             for r in IDmouthAtoms:
                 rname = resMap[r]['resName']
                 resid = resMap[r]['resNum']
-                rChain = resMap[r]['resChain']
+                try:
+                    rChain = resMap[r]['resChain']
+                except KeyError:
+                    rChain = 'A'
                 if((resid,rname,rChain) in content):
                     continue
                 else:
@@ -912,7 +910,10 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
             for r in IDmouthAtoms:
                 rname = resMap[r]['resName']
                 resid = resMap[r]['resNum']
-                rChain = resMap[r]['resChain']
+                try:
+                    rChain = resMap[r]['resChain']
+                except KeyError:
+                    rChain = 'A'
                 if((resid,rname,rChain) in content):
                     continue
                 else:
@@ -957,9 +958,14 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
             for r in resList:
                 resid = resMap[r]['resNum']
                 rname = resMap[r]['resName']
-                rChain = resMap[r]['resChain']
+                try:
+                    rChain = resMap[r]['resChain']
+                except KeyError:
+                    rChain = 'A'
+                outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],rChain,resMap[r]['resNum'],
+                resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
                 if((resid,rname,rChain) in content):
-                    continue
+                    pass
                 else:
                     writeList_s.append(rname+"\t"+str(resid)+'\n')
                     # writeList.append(ratom+"\t"+rname+"\t"+str(resid)+'\n')
@@ -968,9 +974,9 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
             outFile.writelines(writeList_s)
             
 
-            for r in resList:
-                outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resChain'],resMap[r]['resNum'],
-                resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
+            # for r in resList:
+            #     outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resChain'],resMap[r]['resNum'],
+            #     resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
                     
             #Writing mouth info..
             outFile.write("\n#Mouth probe radius {:.2f} and atom coordinates ({:.2f},{:.2f},{:.2f}) r={:.1f},({:.2f},{:.2f},{:.2f}) r={:.1f},({:.2f},{:.2f},{:.2f}), r={:.1f})"
@@ -987,7 +993,10 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
             for r in IDmouthAtoms:
                 rname = resMap[r]['resName']
                 resid = resMap[r]['resNum']
-                rChain = resMap[r]['resChain']
+                try:
+                    rChain = resMap[r]['resChain']
+                except KeyError:
+                    rChain = 'A'
                 if((resid,rname,rChain) in content):
                     continue
                 else:
@@ -1039,7 +1048,11 @@ def saveResSimple(fileNumbering,savingDir,cluster,resMap,nsub=None):
     outFileP=open(filename,'w')
 
     for r in resList:
-        outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resChain'],resMap[r]['resNum'],
+        try:
+            rChain = resMap[r]['resChain']
+        except KeyError:
+            rChain = 'A'
+        outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],rChain,resMap[r]['resNum'],
         resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
 
 

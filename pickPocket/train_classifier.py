@@ -144,17 +144,27 @@ def getRes(resMap,atomList,getCoord=False,getAtomNumber=False):
         NEW: mask where the residues where within 4 AA of ligand coord, if given.
         """
 
+        dummyChain=None
         resList = np.asarray(atomList)
         resList = np.unique(resList)
         # resMap= self.protein.resMap
         if(getAtomNumber):
             resInfo=  [resMap[r]['atomNumber'] for r in resList]
-        elif(getCoord):
-            resInfo = [(tuple(resMap[r]['coord']+[resMap[r]['radius']]),resMap[r]['resName'],resMap[r]['resNum'],resMap[r]['resChain']) for r in resList]
-            # resInfo = [(resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resNum'],np.append(np.asarray(resMap[r]['coord']),resMap[r]['radius'])) for r in resList]
+            return resInfo 
+        #check if chain provided 
+        if (not('resChain' in resMap[0])):
+            dummyChain = 'A'
+            if(getCoord):
+                resInfo = [(resMap[r]['resName'],resMap[r]['resNum'],dummyChain,tuple(resMap[r]['coord']+[resMap[r]['radius']])) for r in resList]
+            else:
+                resInfo = [(resMap[r]['resName'],resMap[r]['resNum'],dummyChain) for r in resList]
         else:
-            resInfo = [(resMap[r]['resName'],resMap[r]['resNum'],resMap[r]['resChain']) for r in resList]
-
+            if(getCoord):
+                resInfo = [(resMap[r]['resName'],resMap[r]['resNum'],resMap[r]['resChain'],tuple(resMap[r]['coord']+[resMap[r]['radius']])) for r in resList]
+                # resInfo = [(resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resNum'],np.append(np.asarray(resMap[r]['coord']),resMap[r]['radius'])) for r in resList]
+            else:
+                resInfo = [(resMap[r]['resName'],resMap[r]['resNum'],resMap[r]['resChain']) for r in resList]
+        
         return resInfo
 
 def hydroCounter(res):
@@ -164,9 +174,9 @@ def hydroCounter(res):
     content = set()
     for r in res:
         # key = (r[0],r[1])
-        resname = r[1]
-        resid = r[2]
-        resChain = r[3]
+        resname = r[0]
+        resid = r[1]
+        resChain = r[2]
         # print(resid,resname)
         if (resid,resname,resChain) in content:
             continue
@@ -192,9 +202,9 @@ def resCounter(res):
     content = set()
     for r in res:
         # key = (r[0],r[1])
-        resname = r[1]
-        resid = r[2]
-        resChain = r[3]
+        resname = r[0]
+        resid = r[1]
+        resChain = r[2]
         # print(resid,resname)
         if (resid,resname,resChain) in content:
             continue
@@ -237,7 +247,7 @@ def densityHydro(res):
     # norm = N*N
 
 
-    coord = np.array([r[0] for r in res])
+    coord = np.array([r[3] for r in res])
 
     d,_f=Pdist_C(coord[:,0:3],coord[:,0:3])
     index = np.where(d<D)[0]
@@ -478,7 +488,7 @@ def buildChemFeaturesNoDensity(pocket,resMap):
 
     # +++++++++++++ CHEMICAL FEATURES +++++++++++++++
     
-    resData = getRes(resMap,pocket['node'].getAtomsIds(),getCoord=True)
+    resData = getRes(resMap,pocket['node'].getAtomsIds())
     # res = [(r[2],r[3],r[4]) for r in resData]
     countHydroClasses = hydroCounter(resData)
     hydrophilic_score = sum(countHydroClasses[4:6])

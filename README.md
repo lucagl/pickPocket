@@ -40,10 +40,11 @@ and copy content in pickPocket/trainedModels/
 contact me if the link expired (the above prevous should always work, instead)
  ### Python modules:
 - numpy
+- scikit-learn
 ## Installation
 First check **Requirements**
 
-from outside the maain folder run within the folder *pip3 install .*
+run within the folder *pip3 install .*
 
 
 Then the lirary should be available for import (see advanced use) or use it as an executable (recomended)

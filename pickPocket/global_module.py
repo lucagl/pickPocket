@@ -121,8 +121,8 @@ def initFolders(pdbName=None):
         try:
             raise FileNotFoundError
         except FileNotFoundError as info:
-            print("Did not find folder containing structures to analyse. Setting working directory.")
-            err.info = str(type(info)) + "Cannot find folder containing structures to analyse. Setting working directory."
+            # print("Did not find folder containing structures to analyse. Setting working directory.")
+            err.info = str(type(info)) + "Cannot find folder containing structure. Setting working directory."
             err.value = 1
         pdbFolder_path = os.path.abspath(".")+'/'
     else:

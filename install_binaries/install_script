@@ -10,16 +10,16 @@ echo "Insert 1 for NanoShaper only, 2 for shared library only (recompiles libCfu
 read choice
 if [[ choice -eq 0 ]] || [[ choice -eq 1 ]]
 then
-	echo "Linking NanoShaper executable\n patchelf will be installed."
+	echo "Linking NanoShaper executable"
 	read -p "Continue? (enter)"
 	# Getting patchelf
-	cd patchelf
-	./bootstrap.sh
-	./configure --prefix="$HOME/.local"
-	make install
-	strip --strip-unneeded ~/.local/bin/patchelf
-	gzip -9 ~/.local/share/man/man1/patchelf.1
-	cd -
+	#cd patchelf
+	#./bootstrap.sh
+	#./configure --prefix="$HOME/.local"
+	#make install
+	#strip --strip-unneeded ~/.local/bin/patchelf
+	#gzip -9 ~/.local/share/man/man1/patchelf.1
+	#cd -
 	## setting NS libraries
 	lib_absPATH=$(readlink -f NS_lib)
 	patchelf --set-rpath $lib_absPATH/ NanoShaper

@@ -43,7 +43,8 @@ contact me if the link expired (the above prevous should always work, instead)
 ## Installation
 First check **Requirements**
 
-run ***python3 setup.py install***
+from outside the maain folder run within the folder *pip3 install .*
+
 
 Then the lirary should be available for import (see advanced use) or use it as an executable (recomended)
 ## Instructions:

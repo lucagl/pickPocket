@@ -47,7 +47,7 @@ First check **Requirements**
 run within the folder *pip3 install .*
 
 
-Then the lirary should be available for import (see advanced use) or use it as an executable (recomended)
+Then the library should be available for import (see advanced use) or use it as an executable (recomended)
 ## Instructions:
 
 ### Simple

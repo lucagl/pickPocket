@@ -17,7 +17,7 @@ DEFAULT: alpha =0, beta=0.6, rp_max=3 (Angstroms)
 Ranking is based on Isolation Forest (IF) anomaly detector. IF is provided as a scikit-learn object previously trained and loaded from a  provided binary file (in pickPocket/trainedModels)
 
 ## Requirements:
- - The NanoShaper executable is provided and is linked to the provided library folder. Relinking could be necessary. To do so use the install_script within *install binaries* folder and follow the prompted instructions.
+ - The NanoShaper executable is provided and is linked to the provided library folder. Relinking could be necessary. To do so run the install_script within *install binaries* folder and follow the prompted instructions.
  - (Reccomended) Recompile locally the shared library. This is done by running the install_script and following the instructions (gcc required).
  
  To run the install script just move into *install binaries* folder and: *./install_script* (it might be necessary to change permissions: *chmod +x install_script*)

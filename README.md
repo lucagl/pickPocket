@@ -17,17 +17,33 @@ DEFAULT: alpha =0, beta=0.6, rp_max=3 (Angstroms)
 Ranking is based on Isolation Forest (IF) anomaly detector. IF is provided as a scikit-learn object previously trained and loaded from a  provided binary file (in pickPocket/trainedModels)
 
 ## Requirements:
- - The NanoShaper executable is provided and is linked to the provided library folder. Relinking could be necessary. To do so run the install_script within *install binaries* folder and follow the prompted instructions.
+ - install patchelf:
+  - sudo apt get install patchelf (ubuntu)
+  - or see https://gist.github.com/ruario/80fefd174b3395d34c14 
+ - The NanoShaper executable is provided bust must be linked to the libraries. To do so run the install_script within *install binaries* folder and follow the prompted instructions (type *./install_script*).
  - (Reccomended) Recompile locally the shared library. This is done by running the install_script and following the instructions (gcc required).
  
  To run the install script just move into *install binaries* folder and: *./install_script* (it might be necessary to change permissions: *chmod +x install_script*)
  
+ ### Download trained model:
+ **Using git lfs** (recomended)
+ 
+ 
+ 0. git clone the folder
+ 1. install git lfs
+ 2. run: git lfs pull 
+
+**Without using git lfs**:
+download from: https://istitutoitalianotecnologia-my.sharepoint.com/:f:/g/personal/luca_gagliardi_iit_it/ErrEE6yVBGpIt_f1z43nKxkB9HZap-EtaeIFUrGzXfHRew?e=SJwohi
+and copy content in pickPocket/trainedModels/
+
+contact me if the link expired (the above prevous should always work, instead)
  ### Python modules:
 - numpy
 ## Installation
 First check **Requirements**
 
-run **pip3 install pickPocket**
+run ***python3 setup.py install***
 
 Then the lirary should be available for import (see advanced use) or use it as an executable (recomended)
 ## Instructions:

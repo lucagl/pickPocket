@@ -46,6 +46,8 @@ First check **Requirements**
 
 run within the folder *pip3 install .*
 
+CAREFUL: In a virtual environment you might force pip to install the package in the same directory (default behavior is to copy to another location) to not miss correct pointing to libraries. If the option -e is given (develop mode) it should prevent this problem to happen.
+
 
 Then the library should be available for import (see advanced use) or use it as an executable (recomended)
 ## Instructions:

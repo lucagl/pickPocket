@@ -26,12 +26,14 @@ pointer = c_array.ctypes.data_as(ctypes.c_void_p)
 
 double distance_euclidean(const double p1[3],const double p2[3]){
     const int D = 3;
-    double d2,p12[D];
+    double d2;
+    d2=0;
     for (int i = 0; i < D; i++)
     {   
-        p12[i] = p1[i]-p2[i]; 
+        d2+= (p1[i]-p2[i])*(p1[i]-p2[i]);
+        // p12[i] = p1[i]-p2[i]; 
     }
-    d2 = p12[0]*p12[0] + p12[1]*p12[1] + p12[2]*p12[2];   
+    // d2 = p12[0]*p12[0] + p12[1]*p12[1] + p12[2]*p12[2];   
     return (sqrt(d2));  
 }
 

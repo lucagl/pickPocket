@@ -3,18 +3,51 @@
 #Copiright:					    © 2020 -2021  Istituto Italiano di Tecnologia   
 ############################################################### 
 #PORTABLE VERSION 1.0
-
+#PORTABLE VERSION 1.1:
+#   - User options
+#   - Limit with a threshold on score or a maximum number the number of pockets displayed
+#   - Use a volume classifier instead of IF which shoud be faster (TODO)
 from pickPocket import *
 from pickPocket import global_module
 import sys
 import os
 import subprocess
 
+import getopt #to manage user options..
+
 inlineCall = False
-keep = 10
+default_keep = 10
+default_rankingThreshold = 0.56
+argv = sys.argv[1:]
+
+# print(argv)
+
+rankingThreshold = default_rankingThreshold
+keep = default_keep
+try:
+    opts, args = getopt.getopt(argv,"h",["range=","maxScore=","help"])
+except getopt.GetoptError:
+    print ('<<ERROR>> Uncorrect formatting of options or unavaible option')
+    sys.exit(2)
+print('options:',opts)
+print('arguments:',args)
+for opt, arg in opts:
+    if opt in ["-h","--help"]:
+        print('Usage:\npython3 -m pickPocket <options> <structureName>\n The structure must be in pqr format.\nOptions:')
+        print('--range=<max number of pockets in ranking>: Default = %d'%default_keep)
+        print('--maxScore=<(0 ,1]>: Default =%.2f, a smaller maximum score reduces the number of returned pockets'%default_rankingThreshold)
+        input('\n')
+        sys.exit()
+    elif opt == '--range':
+        keep = int(arg)
+        print("OPTION: max ranked pockets= %d"%keep)
+    elif opt == '--maxScore':
+        rankingThreshold = float(arg)
+        print("OPTION: max score Isolation Forest= %.2f"%rankingThreshold)
+
+# input()
+
 # INITIALIZATIONS #
-
-
 ### Create temp folder (if not existing)###
 runPath = 'temp'
 if not os.path.exists(runPath):
@@ -22,13 +55,12 @@ if not os.path.exists(runPath):
 # print(global_module.pathTo_NS_ex+'/*')
 subprocess.call('cp '+global_module.pathTo_NS_ex+'* '+runPath+"/", shell=True)
 
-if(len(sys.argv)>1):
+if(len(args[0])>0):
     import re
-    inputFile  = str(sys.argv[1])
+    inputFile  = args[0] #str(sys.argv[1])
     match = re.match('([\w]*)',inputFile) #accepts both <pqrname> and <pqrname.pqr>
     inputFile = match.group(1)
-    print(inputFile)
-    # print("Single run mode on passed pqr file")
+    # print('\nInput structure:',inputFile)
     inlineCall = True
     proteinFile=inputFile
 else:
@@ -41,6 +73,7 @@ errFile.write("## ERROR LOG FILE ##\n")
 logFile = open("logFile.txt", 'w')
 logFile.write("******************************** LOGFILE ********************************** \n")
 
+print()
 main_crono =Crono()
 
 t = main_crono.init()
@@ -83,7 +116,7 @@ else:
     err,isAnalysis,isTest,(alphas,betas,radii) = _input.get(inFile)
     err.handle(errFile)
     # print(isAnalysis,isTest)
-    if((isAnalysis==False) and (isTest ==False)):
+    if((isAnalysis==False) or (isTest ==False)):
         proteinFile=_input.getStructureIterator(single=True)
         alpha=alphas
         beta=betas
@@ -97,9 +130,9 @@ else:
 
 
 logFile.write("Protein structure name= "+proteinFile+"\n")
-logFile.write("Config parameters are:\n alpha= %.1f beta= %.1f \n Maximum probe radius= %.1f, minimum probe radius= %.1f, probe increment= %.2f" 
+logFile.write("Clustering parameters are:\n alpha= %.1f beta= %.1f \n Maximum probe radius= %.1f, minimum probe radius= %.1f, probe increment= %.2f" 
 % (alpha,beta,rp_max,global_module.R_WATER,global_module.delta_rp))
-print("Config parameters are:\n alpha= %.1f beta= %.1f \n Maximum probe radius= %.1f, minimum probe radius= %.1f, probe increment= %.2f\n" 
+print("Clustering parameters are:\n alpha= %.1f beta= %.1f \n Maximum probe radius= %.1f, minimum probe radius= %.1f, probe increment= %.2f\n" 
 % (alpha,beta,rp_max,global_module.R_WATER,global_module.delta_rp))
 print("Protein structure name= "+proteinFile+"\n")
 
@@ -117,7 +150,7 @@ err.handle(errFile)
 #also performs score and size filtering 
 if(pList):
     # err,pList=clustering.printInfo_old(saveSpheres = True,largeP=global_module.largeP)
-    err,pList_ranked = clustering.printInfo(saveSpheres=True,keep=keep,type="IF10",mode=1)
+    err,pList_ranked = clustering.printInfo(saveSpheres=True,keep=keep,rankingThreshold = rankingThreshold)
     logFile.write("\n Detailed info in protein output file("+global_module.pdbFolder_path+") and status.txt file("+global_module.runFolder_path)
     err.handle(errFile)
 else:

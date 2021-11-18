@@ -1172,22 +1172,101 @@ def orange(*args, **kwargs):
 
 ########à###################
 # +++++++++++++++++++++++++ PRINTING STATS METHODS ++++++++++++++++++
+def hitCounter(rank):
+    """Function returning 1d array with each entry corresponding to ranking"""
+    out = np.zeros(10)
+    if(rank==0):
+        out[0] = 1
+    elif(rank==1):
+        out[1] = 1
+    elif(rank==2):
+        out[2] = 1
+    elif(rank==3):
+        out[3] = 1
+    elif(rank==4):
+        out[4] = 1
+    elif(rank==5):
+        out[5] = 1
+    elif(rank==6):
+        out[6] = 1
+    elif(rank==7):
+        out[7] = 1
+    elif(rank==8):
+        out[8] = 1
+    elif(rank==9):
+        out[9] = 1
+    return out
 
-def save_rankingStats(model,alphas,betas,radii,top3,top10,topAlsoSub,topOnlySub,top1Sub,OS,VS,volume,nAnalysed,names,date=''):
+def save_rankingStats_simple(model,alphas,betas,radii,top3,top10,topSub,SingleHit,OS,VS,volume,nPockets,avScore,avScoreTop3,nAnalysed,names,date=''):
     
-    
-    fp =  open(names[model],'w')
+    #nSubs averaged only over hitting pockets
+
+    fp =  open("rankStats_"+names[model],'w')
     
     fp.write("#"+date)
     fp.write("\n# Number of ligand-structure couples treated = %d"%nAnalysed)
-    fp.write("\n#alpha\tbeta\trp_max\ttop3\ttop10\tsubHit\tonlySubHit\ttop1Sub\t\tOS\tVS\tAv volume\n")
+    fp.write("\n#alpha\tbeta\trp_max\ttop3\ttop10\ttopSub   singleHit avScore avScoreTop3\tOS\tVS\tAvVol nPockets nSubs\n")
     for i,a in enumerate(alphas):
         for j,b in enumerate(betas):
             for k,r in enumerate(radii):
-                fp.write("\n %.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f\t\t%.2f\t%.2f\t\t%.3f"%(a,b,r,
-                np.round(top3[i,j,k,model],4)*100,np.round(top10[i,j,k,model],4)*100,np.round(topAlsoSub[i,j,k,model],4)*100,
-                np.round(topOnlySub[i,j,k,model],4)*100,np.round(top1Sub[i,j,k,model],4)*100,np.round(OS[i,j,k,model],4)*100,np.round(VS[i,j,k,model],4)*100,np.round(volume[i,j,k,model],3)))
+                fp.write("\n%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f\t%.2f\t%.3f\t%.2f"%(a,b,r,
+                np.round(top3[i,j,k,model],4)*100,np.round(top10[i,j,k,model],4)*100,np.round(topSub[i,j,k,model],4)*100,np.round(SingleHit[i,j,k,model],4)*100,
+                avScore[i,j,k,model],avScoreTop3[i,j,k,model],np.round(OS[i,j,k,model],4)*100,np.round(VS[i,j,k,model],4)*100,np.round(volume[i,j,k,model],3),nPockets[i,j,k]))
 
+    fp.close()
+
+def saveALLhitStats(model,alphas,betas,radii,hitMatrix,norm,nAnalysed,names,date):
+    fp = open("allHit_"+names[model],'w')   
+    fp.write("#"+date)
+    fp.write("\n# Number of ligand-structure couples treated = %d"%nAnalysed)
+    fp.write("\n#alpha\tbeta\trp_max\ttop1\ttop2\ttop3\ttop4\ttop5\ttop6\ttop7\ttop8\ttop9\ttop10\n")
+    for i,a in enumerate(alphas):
+        for j,b in enumerate(betas):
+            for k,r in enumerate(radii):
+                fp.write("\n%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f \t%.2f\t%.2f"%(a,b,r,
+                np.round(hitMatrix[i,j,k,model,0]/norm[i,j,k,model],4)*100,np.round(hitMatrix[i,j,k,model,1]/norm[i,j,k,model],4)*100,
+                np.round(hitMatrix[i,j,k,model,2]/norm[i,j,k,model],4)*100,np.round(hitMatrix[i,j,k,model,3]/norm[i,j,k,model],4)*100,
+                np.round(hitMatrix[i,j,k,model,4]/norm[i,j,k,model],4)*100,np.round(hitMatrix[i,j,k,model,5]/norm[i,j,k,model],4)*100,
+                np.round(hitMatrix[i,j,k,model,6]/norm[i,j,k,model],4)*100,np.round(hitMatrix[i,j,k,model,7]/norm[i,j,k,model],4)*100,
+                np.round(hitMatrix[i,j,k,model,8]/norm[i,j,k,model],4)*100,np.round(hitMatrix[i,j,k,model,9]/norm[i,j,k,model],4)*100))
+
+    fp.close()
+    return
+def save_rankingStats(model,alphas,betas,radii,top3,top10,topAlsoSub,top1Sub,topOnlySub,SingleHit,top3OnlySub,OS,VS,volume,nPockets,nSubs,avlargePTop3,avlargePTop10,
+nAnalysed,names,date=''):
+    
+    #nSubs averaged only over hitting pockets
+
+    fp =  open("rankStats_"+names[model],'w')
+    
+    fp.write("#"+date)
+    fp.write("\n# Number of ligand-structure couples treated = %d"%nAnalysed)
+    fp.write("\n#alpha\tbeta\trp_max\ttop3\ttop10\tsubHit\ttop1Sub\tonlySub  top3OS  singleHit  largePTop3  largePTop10 \tOS\tVS\tAvVol\t\tnPockets nSubs\n")
+    for i,a in enumerate(alphas):
+        for j,b in enumerate(betas):
+            for k,r in enumerate(radii):
+                fp.write("\n%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f\t%.2f\t\t%.2f\t%.2f\t%.3f\t%.2f\t%.2f"%(a,b,r,
+                np.round(top3[i,j,k,model],4)*100,np.round(top10[i,j,k,model],4)*100,np.round(topAlsoSub[i,j,k,model],4)*100,np.round(top1Sub[i,j,k,model],4)*100,
+                np.round(topOnlySub[i,j,k,model],4)*100,np.round(top3OnlySub[i,j,k,model],4)*100,np.round(SingleHit[i,j,k,model],4)*100,
+                np.round(avlargePTop3[i,j,k,model],4)*100,np.round(avlargePTop10[i,j,k,model],4)*100,
+                np.round(OS[i,j,k,model],4)*100,np.round(VS[i,j,k,model],4)*100,np.round(volume[i,j,k,model],3),nPockets[i,j,k],nSubs[i,j,k,model]))
+
+    fp.close()
+def saveFineRankingStats(model,alphas,betas,radii,top3,top10,topAlsoSub,top1sub,top2sub,farSub,onlySub,onlySub1,onlySub2,onlySubFar,largePtop3,largePtop10,singleHit,top3Single,avScore,avScoreTop3,avScoreSubs,maxScore,minScore,nAnalysed,names,date=''):
+    fp =  open("fineRankStats_"+names[model],'w')
+    fp.write("#"+date)
+    fp.write("\n# Number of ligand-structure couples treated = %d"%nAnalysed)
+    fp.write("\n#alpha\tbeta\trp_max\ttop3\ttop10\tsubHit\ttop1Sub top2Sub  subHitFar  onlySub  onlySub1  onlySub2 onlySubFar largePTop3  largePTop10  singleHit  top3SingleHit  avScore  avST3  avSsubs  maxS  minS\n")
+    for i,a in enumerate(alphas):
+        for j,b in enumerate(betas):
+            for k,r in enumerate(radii):
+                fp.write("\n%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f\t%.2f\t\t%.2f\t%.2f\t\t%.2f\t%.2f\t%.2f\t%.3f\t%.3f"%(a,b,r,
+                np.round(top3[i,j,k,model],4)*100,np.round(top10[i,j,k,model],4)*100,np.round(topAlsoSub[i,j,k,model],4)*100,
+                np.round(top1sub[i,j,k,model],4)*100,np.round(top2sub[i,j,k,model],4)*100,np.round(farSub[i,j,k,model],4)*100,
+                np.round(onlySub[i,j,k,model],4)*100,np.round(onlySub1[i,j,k,model],4)*100,np.round(onlySub2[i,j,k,model],4)*100,
+                np.round(onlySubFar[i,j,k,model],4)*100,np.round(largePtop3[i,j,k,model],4)*100,np.round(largePtop10[i,j,k,model],4)*100,
+                np.round(singleHit[i,j,k,model],4)*100,np.round(top3Single[i,j,k,model],4)*100,
+                avScore[i,j,k,model],avScoreTop3[i,j,k,model],avScoreSubs[i,j,k,model],maxScore[i,j,k,model],minScore[i,j,k,model]))
     fp.close()
 
 def save_avHit(alphas,betas,radii,OS,VS,nhit,n_pockets,n_pockets_norm,n_subs,n_subs_norm,volume,volume_norm,n_spheresXP,n_spheres_normXP,n_spheres,n_spheres_norm,advancement,nAnalysed,date='',filename ="summary_hitFile.out" ):
@@ -1400,9 +1479,11 @@ def getEntrance(mouths,pwDist =False):
 
     Size of the mouth: average distance from weigthed center of mass + average radius
 
-    OBS: This is single linkage. Could be interesting to do it based on baricenter, but more involved..
+    OBS: This is single linkage. Could be interesting to do it based on baricenter, but more involving..
 
-    TODO : Add res types at entrances --> Useful for chemical characterization
+    TODO : 1. Add res types at entrances --> Useful for chemical characterization
+           2. Extract average normal <-- very interesting from user perspective
+           3. Do the same for bottlenecks (sometimes you can have very close bottlnecks mouths)
     """
     #1.  Indentification of clustered exit spheres and gathering in a container 
     # mouths = list(filter(lambda x : x[0].r > rmin , mouths))
@@ -1551,3 +1632,46 @@ def pdist_weight(w_coord,powerDist=False):
                 condition [k] = r[i]+r[j]
             k+=1
     return d,condition
+
+
+def getRanking_volume(geomList):
+    "use only volume"
+    v_list = np.array([g[1] for g in geomList])
+    
+    
+    rank = np.argsort(v_list)[::-1]
+    score = 1-v_list/np.amax(v_list) #0 better 1 worst. Anyhow this is not comparable to isolation forest anomaly scores..
+
+    # DEBUG
+    # print(np.sort(v_list)[::-1])
+    # print(np.sort(score))
+    # print(rank)
+    ########
+    rankSub = rank
+    #same ranking is used for subpockets 
+    return rank,rankSub,np.sort(score),np.sort(score)
+
+
+def extractOFF(inputFileName,skip = 2):
+    '''
+    Extract vertices coordinates from a OFF file..
+    '''
+    file = open(inputFileName,'r')
+    if 'OFF' != file.readline().strip():
+        raise('Not a valid OFF header')
+    for i in range(skip):
+        _skipped_line=file.readline()
+        # print(skipped_line)
+    n_verts, n_faces, n_dontknow = tuple([int(s) for s in file.readline().strip().split(' ')])
+    verts = [[float(s) for s in file.readline().strip().split(' ')] for i_vert in range(n_verts)]
+    faces = [[int(s) for s in file.readline().strip().split(' ')][1:] for i_face in range(n_faces)]
+    return verts, faces
+
+def centerOfMass(verts):
+    '''
+    Returns the center of mass from a list of vertices of the triangulation
+    '''
+    verts = np.array(verts)
+    CM = np.mean(verts,axis=0)
+
+    return CM

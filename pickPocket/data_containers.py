@@ -16,12 +16,9 @@
  # preorder traversal function retrieves child nodes ids --> retrieves elements of a cluster
 import numpy as np
 
-from pickPocket.functions import naiveV
-from pickPocket.functions import trueV
-from pickPocket.functions import NSvolume
-from pickPocket.functions import setup_NSInput
-from pickPocket.functions import new_probe
-from pickPocket.functions import OC #based on volume and area calculations 
+from pickPocket.functions import naiveV,trueV,NSvolume,setup_NSInput,new_probe,OC,centerOfMass,extractOFF
+from pickPocket.functions import Pdist_C
+
 from  pickPocket import global_module
 from pickPocket.global_module import Error
 from pickPocket.protein_class import Protein
@@ -587,6 +584,27 @@ taglist: updated in gather_tag() traverse all tags and update signatures of pock
             # matchScore = 0
             # coverageScore = 0
         return success,matchScore,coverageScore
+
+    def CMmatchScore(self,ligand_coordinates,distanceTh = 4):
+        """
+        Returns success if any ligand atom within 4A from pocket center of mass. The center of mass is extracted from the triangulation..
+        """
+        self.buildTriang(triangName='temp')
+        verts,_faces = extractOFF('temp.off')
+        CM = centerOfMass(verts)
+        ligand_coordinates = np.array(ligand_coordinates)[:,0:3]
+        d,_flag = Pdist_C(ligand_coordinates,CM.reshape((-1,1)).T)
+
+        # print(d)
+        d = np.round(d)
+        # print(d)
+    
+
+        success = np.any(d<=distanceTh)
+
+        # print(success)
+        
+        return success
 
 
     def getCentroid(self,weighted=False):

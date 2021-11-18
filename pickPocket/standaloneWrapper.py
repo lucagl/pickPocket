@@ -686,10 +686,13 @@ class NS_clustering(object):
         return resInfo
 
 
-    def printInfo(self,keep=10,mode = 1, type = "IF", saveSpheres=False,getRes=True,useCNN = False):
+    def printInfo(self,keep,rankingThreshold,mode = 1, type = "IF10", saveSpheres=False,getRes=True,useCNN = False):
         from collections import defaultdict
         #TODO: If subpocket high in ranking, print it instead of master? High in ranking means that is among first 10...
         err=Error()
+
+
+        cutOff= rankingThreshold
 
         if not self.filteredP:
             try:
@@ -699,8 +702,8 @@ class NS_clustering(object):
                 err.info = "Error in printing of pockets files of "+self.pFilename
                 return err
 
-        grid_scale=6
-        accTriang = True
+        # grid_scale=6
+        # accTriang = True
         
 
             # ************* DEBUGGING **************
@@ -712,16 +715,23 @@ class NS_clustering(object):
         # weight = count_Threshold
         # pList=sorted(pockets, key = lambda x: x['node'].score(weight,len(x['btlnks'])))[::-1]
         
-        mainScore,subScore,featureList,map_direct,map_reverse = getRank(self.filteredP,self.protein.resMap,name=type,mode=mode,structureName =self.pFilename,isPedro=useCNN )
+        mainScore,subScore,featureList,map_direct,map_reverse = getRank(self.filteredP,self.protein.resMap,name=type,mode=mode,structureName =self.pdbFolder_path+self.pFilename,isPedro=useCNN )
 
         rankedIndexes = mainScore[0]
         rankedIndexesSub = subScore[0]
         scoreMaster = mainScore[1]
+        scoreSub = subScore[1]
         
+
+        # print(rankedIndexes.size,rankedIndexesSub.size)
         print("%d CANDIDATE POCKETS" %(len(self.filteredP)))
 
         # print(rankedIndexes[:10])
         # print(scoreMaster[:10])
+        print("%.2f CUTOFF"%cutOff)
+        # print(np.round(scoreMaster,2))
+        # print(np.where(np.round(scoreMaster,2)<cutOff))
+        print("MAX number pockets displayed (without considering redundancies): ",min(len(np.where(scoreMaster<cutOff)[0]),keep))
 
         # print(rankedIndexesSub[:10])
         # print(subScore[1][:10])
@@ -731,7 +741,7 @@ class NS_clustering(object):
         # resultFile.write("**RANKED POCKETS FOUND FOR "+self.pFilename+" **  \n")
         resultFile.write("%d CANDIDATE POCKETS FOUND FOR "%(len(self.filteredP))+self.pFilename+" **  \n")
         resultFile.write("**RANKED POCKETS**")
-        print("First " +str(keep) + " ranked pockets:\n")
+        # print("First " +str(keep) + " ranked pockets:\n")
         try:
             if not os.path.exists(self.save_path):
                 os.makedirs(self.save_path)
@@ -750,17 +760,18 @@ class NS_clustering(object):
         r=1 # runs on ranked positions
         skipped=0
         kept=[]
-        while((r<=keep) and (k<rankedIndexes.size)):
+        while((r<=keep) and (k<rankedIndexes.size) and (scoreMaster[k]<cutOff)):
+            
             sub=[] #NOTE: In general don't print subs in only one
             # print("\nindex = ", rankedIndexes[k])
             pi,si = map_direct[rankedIndexes[k]]
             # print(pi,si)
             #       SUBPOCKET DIRECTLY RANKED
             if(si is not None):
-                print("I'm a subpocket")
+                # print("I'm a subpocket")
                 if(pi in selfContained):
                     #going to next element (positions do not progress in the ranking) since sub contained in master pocket higher in ranking
-                    print("already extpressed by master pocket, skipping")
+                    print("Subpocket already extpressed by master pocket, skipping")
                     # skippedSet.add(rankedIndexes[k])
                     skipped+=1
                     k+=1
@@ -769,7 +780,7 @@ class NS_clustering(object):
                 p = sp[si]
                 kept.append(p)
                 # ++++ INFO ++++
-                print("Pocket number",r)
+                print("\nPocket number",r)
                 print("Score = ",scoreMaster[k])
                 resultFile.write("\nPocket number" +str(r))
                 resultFile.write("\n Score = %.2f\n"%scoreMaster[k])
@@ -799,6 +810,7 @@ class NS_clustering(object):
                     selfContained.add(pi)
                 else:
                     redundantList[pi].append(r)
+                    
                     ind = map_reverse[(pi,None)]
                     rank = np.where(rankedIndexes == ind)[0][0]+1
                     print("\n **INFO: is subpocket of (absolute rank): p"+str(rank)) 
@@ -809,10 +821,10 @@ class NS_clustering(object):
             else:
                 #       MASTER POCKET   
                 # Here the ranked pocket could contain subpockets
-                print("I'm a parent pocket")
+                # print("I'm a parent pocket")
                 if(pi in selfContained):
                     # Here only if a SINGLE subpocket was higher in the ranking, this situation is likely to be over redundant
-                    print("Single subpocket already expressed in the ranking")
+                    print("Parent pocket whose single subpocket already expressed in the ranking")
                     # skippedSet.add(rankedIndexes[k])
                     skipped+=1
                     k+=1
@@ -844,12 +856,15 @@ class NS_clustering(object):
                     # print(rank)
                     # print(subScore[1][rank])
                     #if(rank<10):
-                    if(np.round(subScore[1][rank],2)<0.5): 
+                    if(np.round(scoreSub[rank],2)<0.5): 
                         # so is independent on eventual correction on ranking 
                         #Very much prone to accept subpockets, esecially for EIF where scores are generally lower
                         print("Single subpocket elected as better representative of master pocket..")
                         print("SubRank (not accounting for rearrangements):",rank+1)
-                        print("SubScore = ",subScore[1][rank])
+                        absRank = np.where(rankedIndexes == ind)[0][0]
+                        print("SubScore = ",scoreSub[rank])
+                        print("absRank:",absRank+1)
+                        print("Score = ",scoreMaster[absRank])
                         p = p['subpockets'][0]
                         sm = [p['node']]
                         bm= p['btlnks']       
@@ -858,7 +873,7 @@ class NS_clustering(object):
                 #***********************
                 kept.append(p)
                 # ++++ INFO ++++
-                print("Pocket number",r)
+                print("\nPocket number",r)
                 print("(Master pocket) Score = ",scoreMaster[k])
                 resultFile.write("\nPocket number" +str(r))
                 resultFile.write("\n Score = %.2f\n"%scoreMaster[k])
@@ -877,22 +892,33 @@ class NS_clustering(object):
                     resultFile.write(" Subpockets: \n")
                     rank=[]
                     for s in range(n_subs):
+                        print(pi,s)
                         try:
                             rank.append(np.where(rankedIndexesSub==map_reverse[(pi,s)])[0][0])
                         except KeyError:
                             print("Tried to find skipped subpocket")
-                            rank.append(numberPockets + 1) # make sure is at the bottom of the rank
-                            subScore[1][numberPockets + 1] = 1
+                            rank.append(rankedIndexesSub.size) # make sure is at the bottom of the rank
+                            scoreSub=np.append(scoreSub,1)
                     indS = np.argsort(rank)
-                    # print("INDS=",indS)
                     # print(rank)
+                    # print("INDS=",indS)
+                    # print(rankedIndexes.size)
                     good_Subs=0
                     for i,sub_i in enumerate(indS):
-                        if(subScore[1][rank[sub_i]]<0.5):
+                        # print(sub_i,rank[sub_i],scoreSub[rank[sub_i]])
+                        if(scoreSub[rank[sub_i]]<0.5):
                             good_Subs+=1
-                            print("Sub ", i, "Absolute subRanking (not accounting for rearrangements ) = ", rank[sub_i] +1 )
-                            print((pi,sub_i),"ind="+str(map_reverse[(pi,sub_i)]),'subScore',subScore[1][rank[sub_i]])
-                            resultFile.write("  Subpocket %d. subScore = %.2f\n"%(i,subScore[1][rank[sub_i]]))
+                            try:
+                                absRank = np.where(rankedIndexes == map_reverse[(pi,sub_i)])[0][0]
+                            except KeyError:
+                                # print("should not be here?")
+                                # print(pi,i)
+                                scoreMaster = np.append(scoreMaster,1)
+                                absRank = rankedIndexes.size
+                            print("Sub ", i, "SubRanking (not accounting for rearrangements ) = ", rank[sub_i] +1 )
+                            print("Abs ranking = ", absRank +1, "score=", scoreMaster[absRank] )
+                            print((pi,sub_i),"ind="+str(map_reverse[(pi,sub_i)]),'subScore',scoreSub[rank[sub_i]])
+                            resultFile.write("  Subpocket %d. subScore = %.2f\n"%(i,scoreSub[rank[sub_i]]))
                             # print(featureList[map_reverse[(pi,sub_i)]])
                             sp=p['subpockets'][sub_i]['node']
                             err = sp.buildTriang(triangName='sub'+str(r)+'_'+str(i+1),savePath= self.save_path)

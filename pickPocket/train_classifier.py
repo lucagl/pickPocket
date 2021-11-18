@@ -1,9 +1,11 @@
+#TODO efficiency:
+# Can we avoid vomputing subrank for all pockets but focus only on subpockets when needed ?
+
 import numpy as np
 from pickPocket import global_module
 from pickPocket.global_module import Error
 from pickPocket.functions import Pdist_C,getIndex,getEntrance
 import re
-
 
 
 
@@ -503,29 +505,33 @@ def buildChemFeaturesNoDensity(pocket,resMap):
 
     return err,Xc
 
-def buildCNNfeatures(pocket,resMap,structureName):
-    from pege import Pege
-    err = Error()
-    p_atm = getRes(resMap,pocket['node'].getAtomsIds(),getAtomNumber=True)
-    # print(p_atm)
 
-    #FOR MORE EFFICIENCY TODO: load strucutre only when needed.. need to have protein as a global variable in glob module
-    # if oldStructureName == structureName:
-    #     pass
-    # else:
-    #     protein = Pege('structures/'+structureName)
-    
-    protein = Pege('structures/'+structureName+'.pqr')
-    pfeat = protein.get_atoms(p_atm,ignore_missing=True).tolist()
-    # print(structureName)
-    # print(pfeat)
-    # input()
-    if np.any(np.isnan(pfeat)):
-        err.value = 1
-    else:
-        pass
-
-    return err,pfeat        
+class CNNFeature(object):
+    def __init__(self):
+        super().__init__() #class inheritance method.. useless there's no inheritance here
+        self.pege = __import__('pege')
+        
+    def init(self,structureName):
+        err=Error()
+        # print('loading structure')
+        try:
+            self.pegeProtein = self.pege.Pege(structureName+'.pqr')
+        except Exception:
+            err.value=2
+            err.info = "Cannot load structure for PEGE calculations.."
+        return err
+    def build(self,pocket,resMap):
+        
+        err = Error()
+        p_atm = getRes(resMap,pocket['node'].getAtomsIds(),getAtomNumber=True)
+        
+        pfeat = self.pegeProtein.get_atoms(p_atm,ignore_missing=True)
+        if(not isinstance(pfeat,type(None))):
+            pfeat=pfeat.tolist()
+        else:
+            err.value = 1
+        
+        return err,pfeat        
 
 
 
@@ -679,7 +685,10 @@ class MLmodel(object):
             self.bootstrap =True #I think..
             self.exlevel = self.myself.exlevel
     def getScore(self,Xt):
+        # print(type(Xt))
+        # print(len(Xt))
         Xt = np.array(Xt)
+        # print(Xt)
         if(self.mType== ML['IsolationForest']):
             # STANDARD ISOLATION FOREST
             return -self.myself.score_samples(Xt)
@@ -690,7 +699,7 @@ class MLmodel(object):
 
 class Scoring(object):
     #Can be trained or loaded with an already trained model 
-    def __init__(self,modelL=None,modelS=None,modelChem=None,modelChemS = None):
+    def __init__(self,modelL=None,modelS=None,modelChem=None,modelChemS = None,modelP=None,modelPall=None):
         """
         Allows to load a pretrained model
         """
@@ -699,12 +708,18 @@ class Scoring(object):
         self._modelChem= modelChem
         self._modelChemS= modelChemS
 
+        self._modelP = modelP
+        self._modelPall = modelPall
+
         self._Sscore=None
         self._Lscore = None
         
 
         self._chemScore = None
         self._chemScoreS = None
+
+        self._pScore = None
+        self._pScoreS = None
 
         # self._features = None
         #OLD..
@@ -758,23 +773,25 @@ class Scoring(object):
                 inFile=open(filename_model+"_geometryS.pkl",'rb')
                 self._modelS= MLmodel(pickle.load(inFile),modelType)
                 inFile.close()
-                print("Loading chemistry")
+                
                 if(useCNN==True):
-                    # print("Using chemical features from ML model")
+                    print("Loading CNN interactions")
+                    
                     inFile=open(filename_model+"_cnnL.pkl",'rb')
-                    self._modelChem= MLmodel(pickle.load(inFile),modelType)
+                    self._modelP= MLmodel(pickle.load(inFile),modelType)
                     inFile.close()
                     inFile=open(filename_model+"_cnnS.pkl",'rb')
-                    self._modelChemALL= MLmodel(pickle.load(inFile),modelType)
+                    self._modelPall= MLmodel(pickle.load(inFile),modelType)
                     inFile.close()
-                else:
+                #else:
                     # print("Using resnames and hydroscores as chemical features ")
-                    inFile=open(filename_model+"_chemistryL.pkl",'rb')
-                    self._modelChem= MLmodel(pickle.load(inFile),modelType)
-                    inFile.close()
-                    inFile=open(filename_model+"_chemistryS.pkl",'rb')
-                    self._modelChemALL= MLmodel(pickle.load(inFile),modelType)
-                    inFile.close()
+                print("Loading chemistry")
+                inFile=open(filename_model+"_chemistryL.pkl",'rb')
+                self._modelChem= MLmodel(pickle.load(inFile),modelType)
+                inFile.close()
+                inFile=open(filename_model+"_chemistryS.pkl",'rb')
+                self._modelChemALL= MLmodel(pickle.load(inFile),modelType)
+                inFile.close()
             except:
                 err.value=2
                 err.info = "Cannot load trained model(s)"
@@ -801,6 +818,13 @@ class Scoring(object):
                     sample =256
                 print("Chemistry")
                 print("Number of trees = %d, n features = %d, sample size = %d, bootstrap = %s"%(nTrees,n_features,sample,bootstrap))
+                if(useCNN==True):
+                    nTrees = self._modelP.ntrees
+                    sample = self._modelP.sample
+                    bootstrap = self._modelP.bootstrap
+                    n_features = self._modelP.n_features
+                    print("CNN forest")
+                    print("Number of trees = %d, n features = %d, sample size = %d, bootstrap = %s"%(nTrees,n_features,sample,bootstrap))
         if(modelType==ML["Extended IsolationForest"]):
             # Isolation Forestsample
             print("Extended Isolation Forest")
@@ -813,7 +837,7 @@ class Scoring(object):
         
 
     
-    def _getScores(self,featListGeom=[],featListChem=[]):
+    def _getScores(self,featListGeom=[],featListChem=[],featListPedro=[]):
         if(featListGeom):
             Lscore = self._modelL.getScore(featListGeom)
             Sscore = self._modelS.getScore(featListGeom)
@@ -825,6 +849,11 @@ class Scoring(object):
             chemScoreS = self._modelChemALL.getScore(featListChem)
             self._chemScore = chemScore
             self._chemScoreS = chemScoreS
+        if(featListPedro):
+            Pscore = self._modelP.getScore(featListPedro)
+            PscoreS = self._modelPall.getScore(featListPedro)
+            self._pScore = Pscore
+            self._pScoreS = PscoreS
 
         return 
     def getScoresUnique(self,featList):
@@ -858,6 +887,52 @@ class Scoring(object):
         
         # Sscore = 0.5*(Lscore + Sscore) #Alternative inspired by previous analysis (globalRank) NO better S forest
         avScoreS = 0.5 * (Sscore + chemScoreS)
+        
+        mainRank  = np.argsort(avScoreL)
+        subrank = np.argsort(avScoreS)
+
+        return mainRank,subrank,np.sort(np.round(avScoreL,3)),np.sort(np.round(avScoreS,3))
+
+    def getRanking_noSorting(self,featListGeom,featListChem):
+            
+        if self._Lscore is None:
+                self._getScores(featListGeom,featListChem)
+        else:
+            pass
+        Lscore = self._Lscore
+        Sscore = self._Sscore
+        
+        chemScore = self._chemScore
+        chemScoreS = self._chemScoreS
+        avScoreL = 0.5 * (Lscore + chemScore)
+        
+        # Sscore = 0.5*(Lscore + Sscore) #Alternative inspired by previous analysis (globalRank) NO better S forest
+        avScoreS = 0.5 * (Sscore + chemScoreS)
+        
+        mainRank  = np.argsort(avScoreL)
+        subrank = np.argsort(avScoreS)
+
+        return mainRank,subrank,avScoreL,avScoreS
+
+    def getRankingPedro(self,featListGeom,featListChem,featListPedro):
+            
+        if self._Lscore is None:
+                self._getScores(featListGeom,featListChem,featListPedro)
+        else:
+            pass
+        Lscore = self._Lscore
+        Sscore = self._Sscore
+        
+        chemScore = self._chemScore
+        chemScoreS = self._chemScoreS
+
+        Pscore = self._pScore
+        PscoreS = self._pScoreS
+
+        avScoreL = 1./3. * (Lscore + chemScore + Pscore)
+        
+        # Sscore = 0.5*(Lscore + Sscore) #Alternative inspired by previous analysis (globalRank) NO better S forest
+        avScoreS = 1./3. * (Sscore + chemScoreS + PscoreS)
         
         mainRank  = np.argsort(avScoreL)
         subrank = np.argsort(avScoreS)
@@ -989,6 +1064,19 @@ class Scoring(object):
         subrank = np.argsort(chemScoreS)
 
         return mainRank,subrank,np.sort(np.round(chemScore,3)),np.sort(np.round(chemScoreS,3))
+
+    def getRankingOnlyPedro(self,featListPedro):
+        
+        if self._chemScore is None:
+            self._getScores(featListPedro=featListPedro)
+        else:
+            pass
+        Pscore = self._pScore
+        PscoreS = self._pScoreS
+        mainRank  = np.argsort(Pscore)
+        subrank = np.argsort(PscoreS)
+
+        return mainRank,subrank,np.sort(np.round(Pscore,3)),np.sort(np.round(PscoreS,3))
     
     def getRankingOnlyChemALL(self,featListChem):
         
@@ -1302,7 +1390,7 @@ def getRank(pList,resMap,name, mode,loadTrained = True,structureName='',isPedro=
         exit()
 
     if(isPedro):
-        print("Using CNN features for chemical properties")
+        print("Using also CNN features")
     else:
         print("Using residues and hydro scores for chemical properties")
     #**************************************
@@ -1340,8 +1428,10 @@ def getRank(pList,resMap,name, mode,loadTrained = True,structureName='',isPedro=
     if(isPedro == False):
         featListGeom,featListChem,map_direct,map_reverse = getFeatNoDensity(pList,resMap)
     else:
-        featListGeom,featListChem,map_direct,map_reverse = getFeatPedro(pList,resMap,structureName=structureName)
-    
+        featListGeom,featListChem,featListPedro,map_direct,map_reverse = getFeatPedro(pList,resMap,structureName=structureName)
+        rankedIndexes,rankedIndexesSub,numericalScore,numericalScoreSub = score.getRankingPedro(featListGeom,featListChem,featListPedro)
+        return_featList = featListGeom
+        return (rankedIndexes,numericalScore),(rankedIndexesSub,numericalScoreSub),return_featList,map_direct,map_reverse
     return_featList = featListGeom
     if(mode ==1): 
         print("\n**50/50 geometry and chemistry ranking mode**\n")
@@ -1466,9 +1556,16 @@ def getFeatPedro(pList,resMap,structureName):
 
     featListGeom = [] 
     featListChem = []
+    featListPedro =[]
     mapd={} 
     mapr={}
     s = 0
+
+    pedroFeat = CNNFeature()
+    err = pedroFeat.init(structureName)
+    # print('HERE')
+    if err.value==2:
+        raise Exception("<<ERROR>>"+err.info)
     for parentPindex,p in enumerate(pList):
         # print(parentPindex)
         err,fg= buildGeomFeatures(p)
@@ -1476,13 +1573,15 @@ def getFeatPedro(pList,resMap,structureName):
             #Maybe in these scenarios assume 0 volume? (but is the same, it will cause the pocket to be out from ranking)
             print("Skipping pocket, since unable to estimate the volume")
             continue
-        err,fc= buildCNNfeatures(p,resMap,structureName)
+        err,fc= buildChemFeaturesNoDensity(p,resMap) #Dummy error, never produced
+        err,fp= pedroFeat.build(p,resMap)
         if(err.value==1):
             #Maybe in these scenarios assume 0 volume? (but is the same, it will cause the pocket to be out from ranking)
             print("Skipping pocket, since NaN in CNN features")
             continue
         
         featListGeom.append(fg)
+        featListPedro.append(fp)
         featListChem.append(fc)
         mapd[s] = (parentPindex,None)
         mapr [(parentPindex,None)]=s
@@ -1492,19 +1591,21 @@ def getFeatPedro(pList,resMap,structureName):
             if(err.value==1):
                 print("Skipping sub-pocket, since unable to estimate the volume")
                 continue
-            err,fc= buildCNNfeatures(sub,resMap,structureName)
+            err,fc= buildChemFeaturesNoDensity(sub,resMap)
+            err,fp= pedroFeat.build(sub,resMap)
             if(err.value==1):
                 #Maybe in these scenarios assume 0 volume? (but is the same, it will cause the pocket to be out from ranking)
                 print("Skipping pocket, since NaN in CNN features")
                 continue
             
             featListGeom.append(fg)
+            featListPedro.append(fp)
             featListChem.append(fc)
             mapd[s] = (parentPindex,subIndex)
             mapr [(parentPindex,subIndex)]=s
             s+=1
         
-    return featListGeom,featListChem,mapd,mapr
+    return featListGeom,featListChem,featListPedro,mapd,mapr
 
 def getFeatOnlyDensity(pList,resMap):
     '''

@@ -16,7 +16,7 @@ saveP = False  # save res and number of hitting pocket.. CAREFUL use for single 
 
 excludePeptide = False
 
-VS_threshold = 0.5
+VS_threshold = 0.2
 OV_threshold = 0.5
 
 print("THRESHOLDS:\nOV=%.1f\tVS=%.1f"%(OV_threshold,VS_threshold))
@@ -31,6 +31,11 @@ def main():
     inlineCall = False
     # INITIALIZATIONS #
     runPath = 'temp'
+    if not os.path.exists(runPath):
+        os.makedirs(runPath)
+# print(global_module.pathTo_NS_ex+'/*')
+    subprocess.call('cp '+global_module.pathTo_NS_ex+'* '+runPath+"/", shell=True)
+
     if not os.path.exists(runPath):
         os.makedirs(runPath)
         subprocess.call('cp '+global_module.pathTo_NS_ex+'* '+runPath+"/", shell=True)
@@ -143,7 +148,7 @@ def main():
 
     if(isTest):
         from pickPocket.train_classifier import Scoring,getFeatNoDensity
-        from pickPocket.functions import save_rankingStats,hitCounter,saveALLhitStats,saveFineRankingStats,getRanking_volume
+        from pickPocket.functions import save_rankingStats,hitCounter,saveALLhitStats,saveFineRankingStats
 
         #   *********** LOAD TRAINED MODEL ****************
 
@@ -158,7 +163,7 @@ def main():
         # model2="IF10_onlyDensity" # Hydro density replaces hydro count
       
         
-        names = ["IF_geomChem.out","IF_onlyGeom.out","IF_onlyChem.out","VolumeScore.out"]
+        names = ["IF_geomChem.out","IF_onlyGeom.out","IF_onlyChem.out"]
 
         err = scoreIF.load(modelName,modelType=1,unique=False) #change here and below to test different classifiers..
         # err = scoreIF_onlyDensity.load(model2,modelType=1,unique=False)
@@ -166,7 +171,7 @@ def main():
         
         err.handle(errFile)
 
-        n_models = 4 # Ranking modes..
+        n_models = 3 # Ranking modes..
 
         hitTop3 = np.zeros((alphas.size,betas.size,radii.size,n_models))
         hitTop10 = np.zeros((alphas.size,betas.size,radii.size,n_models))
@@ -197,6 +202,8 @@ def main():
         avScore = np.zeros((alphas.size,betas.size,radii.size,n_models))
         avScoreTop3 = np.zeros((alphas.size,betas.size,radii.size,n_models))
         avScoreSubs =np.zeros((alphas.size,betas.size,radii.size,n_models))
+        maxScore = np.zeros((alphas.size,betas.size,radii.size,n_models))
+        minScore = np.ones((alphas.size,betas.size,radii.size,n_models))
 
         nAnalysed = 0
         nPockets=np.empty((alphas.size,betas.size,radii.size))
@@ -208,8 +215,7 @@ def main():
         for i in range(n_models):
             nohitMap.append({})
         
-        ff = [open("noTopHit_geomChem_"+modelName+".out",'w'),open("noTopHit_onlyGeom_"+modelName+".out",'w'),open("noTopHit_onlyChem_"+modelName+".out",'w'),
-        open("noTopHit_volSort.out",'w')]
+        ff = [open("noTopHit_geomChem_"+modelName+".out",'w'),open("noTopHit_onlyGeom_"+modelName+".out",'w'),open("noTopHit_onlyChem_"+modelName+".out",'w')]
 
 
         #LOOP OVER STRUCTURES
@@ -341,15 +347,16 @@ def main():
                         rankIF_onlyGeom = (rankedIndexesIF,rankedIndexesSubIF)
                         score_onlyGeom = (numericalScoreIF,numericalScoreSubIF)
 
-                        rankedIndexesIF,rankedIndexesSubIF,numericalScoreIF,numericalScoreSubIF = getRanking_volume(featListGeom)
-                        rankIF_volume = (rankedIndexesIF,rankedIndexesSubIF) #actually identical ranking for the 2 categories..
-                        score_volume = (numericalScoreIF,numericalScoreSubIF)
+                        # scoreIF_onlyDensity.resetRank()
+                        # rankedIndexesIF,rankedIndexesSubIF,_numericalScoreIF,_numericalScoreSubIF = scoreIF_onlyDensity.getRanking(featListGeom,featListChemDensity)
+                        # rankIF_onlyDensity = (rankedIndexesIF,rankedIndexesSubIF)
 
                     
-                        ranks = [rankIF_geomChem,rankIF_onlyGeom,rankIF_onlyChem,rankIF_volume]
-                        scores = [score_geomChem,score_onlyGeom,score_onlyChem,score_volume]
+                        ranks = [rankIF_geomChem,rankIF_onlyGeom,rankIF_onlyChem]
+                        scores = [score_geomChem,score_onlyGeom,score_onlyChem]
                         
-                        save_path = 'output/'+structures[s]['pqr']+'_Pres'
+                        # save_path = 'output/'+structures[s]['pqr']+'_Pres'
+                        save_path = 'output/'+structures[s]['pqr']+'_pockets'
                         for ln,l in enumerate(ligands_coord):
                             # print(l['name'])
                             # top3 = np.zeros(n_models)
@@ -405,6 +412,11 @@ def main():
                                             score=scoreMain[r_in]
                                             avScore[i,j,k,m] += score
                                             
+                                            if(maxScore[i,j,k,m]<score):
+                                                maxScore[i,j,k,m]=score
+                                            if(minScore[i,j,k,m]>score):
+                                                minScore[i,j,k,m] = score
+                                            
                                             # print('score = ', score)
                                             # print('unnormalized avScore = ',avScore[i,j,k,m], 'norm = ',hitTop10[i,j,k,m])
 
@@ -448,6 +460,11 @@ def main():
                                             # print('masterVol=',volume[m])
                                             avScore[i,j,k,m] += score
                                             
+                                            if(maxScore[i,j,k,m]<score):
+                                                maxScore[i,j,k,m]=score
+                                            if(minScore[i,j,k,m]>score):
+                                                minScore[i,j,k,m] = score
+
                                             hitTop10[i,j,k,m] +=1
                                             # print('score = ', score)
                                             # print('unnormalized avScore = ',avScore[i,j,k,m], 'norm = ',hitTop10[i,j,k,m])
@@ -480,6 +497,7 @@ def main():
                                                 scoreSub = np.append(scoreSub,1)
                                         indS = np.argsort(internal_rank) #relative rank among subpockets
                                         # print(indS)
+                                        gotHitsub = False
                                         for ns,sub_i in enumerate(indS):
                                             subpocket = subs[sub_i]['node']
                                             subpocket.load_protein(clustering.get_protein())
@@ -522,6 +540,12 @@ def main():
                                                     hitTop10[i,j,k,m] +=1
                                                     #avScore[i,j,k,m] += subscore #BUT EVALUATED ACCORDING TO ANOTHER FOREST, NOT VERY INTERPRETABLE TO MIX THEM
                                                     avScore[i,j,k,m] += score #score of the master pocket (that normally wouldnt have hit)
+
+                                                    if(maxScore[i,j,k,m]<score):
+                                                        maxScore[i,j,k,m]=score
+                                                    if(minScore[i,j,k,m]>score):
+                                                        minScore[i,j,k,m] = score
+
                                                     if(r<3):
                                                         hitTop3[i,j,k,m] += 1
                                                         avScoreTop3[i,j,k,m] += score
@@ -535,9 +559,9 @@ def main():
                                                 #volume[m],_A,err = subpocket.volume() 
                                                 volume[m],_A,err = pocket.volume()
                                                 if(saveP and m==0):
-                                                    if not os.path.exists(save_path):
-                                                        os.makedirs(save_path)
-                                                    saveResSimple(r,save_path,subpocket,clustering.get_protein().resMap,nsub=sub_i)
+                                                    if not os.path.exists(save_path+'/sub'):
+                                                        os.makedirs(save_path+'/sub')
+                                                    saveResSimple(r,save_path+'/sub',subpocket,clustering.get_protein().resMap,nsub=sub_i)
                                                 break
                                         if((not gotHitsub)and gotHit and (n_subs>1)):
                                             if(r<3):
@@ -639,12 +663,12 @@ def main():
                 save_rankingStats(m,alphas,betas,radii,avHitTop3,avHitTop10,
                 avHitTopwithSub,avHitTop1Sub,avHitTopOnlySub,avSingleHit,avHitTop3OnlySub,  #respectively top3 sub,subhit when no masterHit,top1 sub,single pocket or sub hit, sub hit more than 3rd
                 average_OS_log,average_VS_log,average_volume_log,sum_nPockets/analStructures,average_nSubs,
-                avScore_log,avScoreTop3_log,avScoreSubs_log,avlargePTop3,avlargePTop10,
+                avlargePTop3,avlargePTop10,
                 nAnalysed,names,date=Crono().init())
                 saveALLhitStats(m,alphas,betas,radii,hitMatrix,allHit,nAnalysed,names,date=Crono().init())
                 saveFineRankingStats(m,alphas,betas,radii,avHitTop3,avHitTop10,
                 avHitTopwithSub,avHitTop1Sub,avHitTop2Sub,avHitTopFarSub,avHitTopOnlySub,avHitTopOnlySub1,avHitTopOnlySub2,avHitTopOnlySubFar,
-                avlargePTop3,avlargePTop10,avSingleHit,avTop3SingleHit,nAnalysed,names,date=Crono().init())
+                avlargePTop3,avlargePTop10,avSingleHit,avTop3SingleHit,avScore_log,avScoreTop3_log,avScoreSubs_log,maxScore,minScore,nAnalysed,names,date=Crono().init())
         
 
             advancement =(100*np.round((s+1)/n_structures,3),s+1-skipped_structures,n_structures)

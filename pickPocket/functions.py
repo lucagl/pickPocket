@@ -95,7 +95,7 @@ def NSvolume(coordinates,nameTriang,savePath):
         elif(matchS):
             errline = "<<ERROR>> "+matchS.group(2)
         else:
-            errline = "Unexpected error.. :"+grepexc.output
+            errline = "Unexpected error.. :"+str(grepexc.output)
         # errline=re.search("(<<ERROR>>\s*)(.*)",str(grepexc.output)).group(2)
         # print("HERE")
         # print("1"+errline)
@@ -769,7 +769,9 @@ def saveP(fileNumbering,savingDir,cluster,isPQR,subPockets = []):
                 z = coordinates[:,2]
                 r = coordinates[:,3]
                 for i in range(n):
-                    outFile.write("ATOM  %5d  %-3s %3s %c%4d    %8.3f%8.3f%8.3f%8.4f%8.4f\n" % (i,"C","NSR",'A',1,x[i],y[i],z[i],0.,r[i]) )
+                    # outFile.write("ATOM  %5d  %-3s %3s %c%4d    %8.3f%8.3f%8.3f%8.4f%8.4f\n" % (i,"C","NSR",'A',1,x[i],y[i],z[i],0.,r[i]) )
+                    outFile.write("{:<6s}{:>5d} {:<5s}{:>3s} {:1s}{:>5s}   {:>8.3f} {:>8.3f} {:>8.3f} {:>8.4f} {:>8.4f}\n".format('ATOM',i+1,'C','NSR','A','1',
+                    x[i],y[i],z[i],0.,r[i]))
                 outFile.close()
 
     return;
@@ -818,9 +820,14 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
             rChain = resMap[r]['resChain']
         except KeyError:
             rChain = 'A'
-        # ratom = resMap[r]['resAtom']
-        outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],rname,rChain,resid,
+        # # ratom = resMap[r]['resAtom']
+        # outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],rname,rChain,resid,
+        # resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
+
+        #better format (but for now keep tollerance in reading from PQR based on regex..):
+        outFileP.write("{:<6s}{:>5d} {:<5s}{:>3s} {:1s}{:>5s}   {:>8.3f} {:>8.3f} {:>8.3f} {:>8.4f} {:>8.4f}\n".format('ATOM',r+1,resMap[r]['resAtom'],rname,rChain,resid,
         resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
+
         if((resid,rname,rChain) in content):
             pass
         else:
@@ -1048,11 +1055,13 @@ def saveResSimple(fileNumbering,savingDir,cluster,resMap,nsub=None):
     outFileP=open(filename,'w')
 
     for r in resList:
+        resid = resMap[r]['resNum']
+        rname = resMap[r]['resName']
         try:
             rChain = resMap[r]['resChain']
         except KeyError:
             rChain = 'A'
-        outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],rChain,resMap[r]['resNum'],
+        outFileP.write("{:<6s}{:>5d} {:<5s}{:>3s} {:1s}{:>5s}   {:>8.3f} {:>8.3f} {:>8.3f} {:>8.4f} {:>8.4f}\n".format('ATOM',r+1,resMap[r]['resAtom'],rname,rChain,resid,
         resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
 
 

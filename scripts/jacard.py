@@ -18,13 +18,14 @@ JACCARD_THRESHOLD = 0.1
 frameFolder1='holo/1bid/'
 frameFolder2='apo/3tms/'
 
-amino = {'ALA','ARG','ASN','ASP','CYS','GLN','GLU','GLY','HIS','HID','HIE','HIP','ILE','LEU','LYS','MET','PHE','PRO','SER','THR','TRP','TYR','VAL'}
-
 def get_pAtoms(filename):
+    '''
+    Reads res info from PQR (pickPocket) or PDB (Fpocket) files 
+    '''
     resMap = []
     content ={}
-    comment =['#', 'CRYST[0-9]?']
-    remark = ['REMARK']
+    comment =['#', 'CRYST[0-9]?','HEADER']
+    remark = ['REMARK','HETATM']
     termination = ['TER', 'END', '\n']
     skip = comment+remark+termination
     skip = '(?:% s)' % '|'.join(skip)
@@ -83,11 +84,13 @@ def get_pAtoms(filename):
             lineg = re.match(matchPattern,line).groups()
 
             if(isChainID):
+                # content = {'resName':lineg[nameInd],'resNum':lineg[resInd],'atomNumber':int(lineg[1]),'resAtom': lineg[atomInd],'resChain':lineg[chainInd],
+                # 'charge':float(lineg[chargeInd]),'coord':list(map(float, lineg[coordInd:coordInd+3])),'radius':float(lineg[rInd])}
                 content = {'resName':lineg[nameInd],'resNum':lineg[resInd],'atomNumber':int(lineg[1]),'resAtom': lineg[atomInd],'resChain':lineg[chainInd],
-                'charge':float(lineg[chargeInd]),'coord':list(map(float, lineg[coordInd:coordInd+3])),'radius':float(lineg[rInd])}
+                'coord':list(map(float, lineg[coordInd:coordInd+3]))}
             else:
                 content = {'resName':lineg[nameInd],'resNum':lineg[resInd],'atomNumber':int(lineg[1]),'resAtom': lineg[atomInd],
-                'charge':float(lineg[chargeInd]),'coord':list(map(float, lineg[coordInd:coordInd+3])),'radius':float(lineg[rInd])}
+                'coord':list(map(float, lineg[coordInd:coordInd+3]))}
             resMap.append(content)
             # print(content)
     
@@ -104,13 +107,13 @@ def get_uniqueRes(atoms,isRes):
     out=[]
     if(isRes):
         for a in atoms:
-            resid =a ['resNum']
+            resid =a ['resNum']#< MOST IMPORTANT..
             rname = a['resName']
             rChain = a['resChain']
             if(((resid,rname,rChain) in content)):
                 pass
             else:
-                out.append((resid,rname,rChain))
+                out.append([resid,rname,rChain])
                 content.add((resid,rname,rChain))
     else:
         for a in atoms:
@@ -118,22 +121,24 @@ def get_uniqueRes(atoms,isRes):
             rname = a['resName']
             rChain = a['resChain']
             atomName = a['resAtom']
-            out.append((atomName,resid,rname,rChain))
+            out.append([resid,rname,rChain,atomName])
     return out
+
 #### Principal function
 
-def jack(resA,resB):
+def jack(resReference,resPocket,getMatchScores=False):
     '''
     Compares residue returning the Jaccard index
     J = |A intersection B| / |A union B |
     '''
-    setA=set(resA)
-    setB=set(resB)
+  
+    set_reference=set([tuple(l) for l in resReference])
+    set_pocket=set([tuple(l) for l in resPocket])
 
     #Cardinality of the union:
 
     
-    intersectionSet = setA & setB
+    intersectionSet = set_pocket & set_reference
     I = len(intersectionSet)
     #DEBUG
     # unionSet = setA | setB
@@ -144,12 +149,17 @@ def jack(resA,resB):
     # print('intersection = ', intersectionSet)
 
 
-    U =( len(setA)+len(setB) - I)
+    U =( len(set_reference)+len(set_pocket) - I)
     # print(I,U)
     J = I/U
-    J = np.round(J,4)
-    
-    return J
+    OS = len(intersectionSet)/len(set_reference)
+    VS = len(intersectionSet)/len(set_pocket)
+    # J = np.round(J,4)
+
+    if(getMatchScores):
+        return J,OS,VS
+    else:   
+        return J
 
 
 

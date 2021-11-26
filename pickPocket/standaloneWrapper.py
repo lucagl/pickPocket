@@ -892,7 +892,7 @@ class NS_clustering(object):
                     resultFile.write(" Subpockets: \n")
                     rank=[]
                     for s in range(n_subs):
-                        print(pi,s)
+                        # print(pi,s)
                         try:
                             rank.append(np.where(rankedIndexesSub==map_reverse[(pi,s)])[0][0])
                         except KeyError:

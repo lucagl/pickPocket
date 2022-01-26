@@ -163,7 +163,7 @@ def main():
       
         
         #names = ["IF_1.out","IF_2.out","IF_15.out","IF_20.out"]
-        names = ["IF_1.out","IF_2.out","IF_3.out","IF_4.out"]
+        names = ["IF_5.out","IF_10.out","IF_15.out","IF_20.out"]
 
         err = scoreIF.load(modelName,modelType=1,unique=False) #change here and below to test different classifiers..
         # err = scoreIF_onlyDensity.load(model2,modelType=1,unique=False)
@@ -172,7 +172,7 @@ def main():
         err.handle(errFile)
 
         n_models = 4 # Ranking modes..
-        penalty=[0.01,0.02,0.03,0.04]
+        penalty=[0.05,0.1,0.15,0.2]
 
         hitTop3 = np.zeros((alphas.size,betas.size,radii.size,n_models))
         hitTop10 = np.zeros((alphas.size,betas.size,radii.size,n_models))
@@ -202,8 +202,8 @@ def main():
         for i in range(n_models):
             nohitMap.append({})
         
-        ff = [open("noTopHit_1percent_"+modelName+".out",'w'),open("noTopHit_2percent_"+modelName+".out",'w'),open("noTopHit_3percent_"+modelName+".out",'w'),
-        open("noTopHit_4percent_"+modelName+".out",'w')]
+        ff = [open("noTopHit_5percent_"+modelName+".out",'w'),open("noTopHit_10percent_"+modelName+".out",'w'),open("noTopHit_15percent_"+modelName+".out",'w'),
+        open("noTopHit_20percent_"+modelName+".out",'w')]
 
 
         #LOOP OVER STRUCTURES
@@ -371,7 +371,7 @@ def main():
 
                                 # print('original rank')
                                 # print(np.sort(scoreMain)[:10])
-                                # print(rankMain[:10])
+                                print(rankMain[:10])
 
                                 while ((r<10) and (r_in < rankMain.size)):
 
@@ -505,11 +505,14 @@ def main():
                                                 scoreMain[map_reverse[(pi,sub_i)]] = score*(1.+penalty[m]*ns)
                                                 # print("updating ranks")
                                                 # print("index: ", map_reverse[(pi,sub_i)])
-                                                # print("master score=%.3f-->%.3f"%(score,score*(1.+penalty[m]*ns)))
-                                                rankMain = np.argsort(scoreMain) #update rank with new value for subpocket
-                                                # if(ns==(n_subs-1)):
-                                                #     print(np.sort(scoreMain)[:10])
-                                                #     print(rankMain[:10])   
+                                                print("master score=%.3f-->%.3f"%(score,score*(1.+penalty[m]*ns)))
+                                                u,ind = np.unique(np.argsort(scoreMain),return_index=True) #update rank with new value for subpocket
+                                                rankMain = u[np.argsort(ind)] # make sure that if a subpocket already in the ranking is not repeated 
+                                                #(e.g when 3 subpockets of master and first above in ranking and then master..)
+                                               
+                                                if(ns==(n_subs-1)):
+                                                    print(np.sort(scoreMain)[:10])
+                                                    print(rankMain[:10])   
                                         if gotHit:
                                             print("subpocket %d hit"%(ns +1))
                                             # print("rank=",r+1)

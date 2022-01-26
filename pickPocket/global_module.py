@@ -218,7 +218,7 @@ class Error(object):
 
 class ReadConfig(object):
     #read onfiguration file 
-    def __init__(self,alpha=0.0,beta=0.6,rpMAX=3):
+    def __init__(self,alpha=0.0,beta=0.7,rpMAX=3):
         self.alpha = alpha
         self.beta = beta
         self.rp_max = rpMAX

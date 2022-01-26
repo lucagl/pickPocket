@@ -608,6 +608,7 @@ taglist: updated in gather_tag() traverse all tags and update signatures of pock
 
 
     def getCentroid(self,weighted=False):
+        '''Returns the center of mass of the cluster'''
         spheres = np.array(self.getCoordinates())
         coord = spheres[:,0:3]
         if(weighted):

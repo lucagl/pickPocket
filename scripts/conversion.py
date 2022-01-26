@@ -1,4 +1,3 @@
-#QUESTION: What about subpockets?
 
 import pandas as pd
 import re
@@ -6,10 +5,10 @@ import numpy as np
 import sys
 
 
-SES_RADIUS = 1.8
+SES_RADIUS = 1.4
 
-OS_Threshold = 0.5
-VS_Threshold = 0.2
+OS_Threshold = 0.2  
+VS_Threshold = 0.5
 
 conversion = pd.read_pickle("../conversion.pickle")
 def holo2apo(holoid: str, chain: str, resnumb: str) -> str:
@@ -39,6 +38,9 @@ def holo2apo(holoid: str, chain: str, resnumb: str) -> str:
     converted_resnumb = prot_conversion["APOresnumbs"].values[0][i_res]
     apo_chain = prot_conversion["APOchain"].values[0]
 
+    #Manual correction
+    if(holoid=='1srf'):
+        apo_chain = chain
 
     return str(converted_resnumb),apo_chain
 ##############
@@ -104,11 +106,13 @@ class exposedFetcher(object):
 
         #CHECK EXPOSED
         exposedFile = open(self.workingDir+'exposedIndices.txt','r')
+        self.indices =set()
         for line in exposedFile.readlines():
             self.indices.add(int(line))
-        print('Before exposing:', len(resMap))
+        print('ALL atoms:', len(resMap))
+        print('ALL residues:',len(set([(d['resName'],d['resNum'],d['resChain']) for d in resMap])))
         self.map=set([(d['resNum'],d['resChain']) for d in list(filter(lambda x: x['atomNumber'] in self.indices, resMap))])
-        print('After exposing:', len(self.map))
+        print('EXPOSED residues:', len(self.map))
     def checkExposed(self,atoms):
         #important: pass only residues of interest (the converted apo ones), check if those residues have good exposed indices    
         #x[0] = resNumber, x[2] = resChain (resname useless actually)
@@ -136,6 +140,7 @@ def main():
     norm =0 
     hitTOP10=0
     hitTOP3=0
+    hitTOP1 = 0
     avScoreJC =0
     avScoreOS =0
     avScoreVS =0
@@ -150,6 +155,7 @@ def main():
     #e unisci scores pockets che si toccano ? 
     pocketVSlow=[]
     for holo,apo in mapping.items():
+        print('\n')
         print(holo,apo)
         apoFolder = apo+'_pockets/'
         pList_apo=[n for n in glob.glob(apoFolder+'p*_atm.pqr')] #not ranked   
@@ -157,60 +163,74 @@ def main():
         # print("sorted pockets",pList_apo)
         refPocketFolder = '../referenceHOLO/'+holo+'/'
         groundTruth =  [n for n in glob.glob(refPocketFolder+'*')] #can have more than 1 ligand
-        # print("ground truth files:",groundTruth)
+        print("ground truth files:",groundTruth)
+        print('length ground truth=',len(groundTruth))
         exposed.getExposedAtoms(apo)
-        for refP in groundTruth:
-            atomRef = jacard.get_pAtoms(refP)
-            #FILTER HERE FOR EXPOSED..
-
-
-            ###
-            resReference = jacard.get_uniqueRes(atomRef,USE_RES)
-            # print("before conversion res Reference pocket:", resReference)
-            resReference = convertResNum(resReference,holo) 
-            # print("after conversion (%d elements):%s"%(len(resReference),resReference))  
-            resReference=exposed.checkExposed(resReference)
-            # print("After exposed filtering (%d elements):%s"%(len(resReference),resReference))
-            norm+=1
-            for r,pAPO in enumerate(pList_apo):
-                # print(pAPO)
-                # print('rank=',r+1)
-                atomAPO = jacard.get_pAtoms(pAPO)
-                resAPO = jacard.get_uniqueRes(atomAPO,USE_RES)  
+        r = 0
+        norm+=len(groundTruth)
+        nHits = 0
+        for pn,pAPO in enumerate(pList_apo):
+            # print(pAPO)
+            print('rank =',r+1)
+            print('pockets index =',pn)
+            atomAPO = jacard.get_pAtoms(pAPO)
+            resAPO = jacard.get_uniqueRes(atomAPO,USE_RES)  
+            gotHit=False
+            
+            for refP in groundTruth:
+                atomRef = jacard.get_pAtoms(refP)
+                
+                resReference = jacard.get_uniqueRes(atomRef,USE_RES)
+                # print("before exposing res Reference pocket %d elements"%len(resReference))
+                resReference = convertResNum(resReference,holo) 
+            
+                resReference=exposed.checkExposed(resReference)
+                # print("after exposing %d elements"%len(resReference))  
+            
                 
                 simScore,OS,VS = jacard.jack(resReference,resAPO,getMatchScores=True)
-                # print('OS=',OS,'VS=',VS)
-                # print('JACCARD:',simScore)
-                #if(np.round(simScore,1)>=JACCARD_THRESHOLD):
-                    
+
+                print(refP)
+                
                 if(((np.round(OS,1)>=OS_Threshold) and (np.round(VS,1) >= VS_Threshold))):
+                    gotHit = True
                     print('**HIT:%s'%(pAPO))
                     print('OS=',OS,'VS=',VS,'JACCARD:',simScore)
                     hitTOP10+=1
+                    nHits+=1
                     avScoreJC += simScore
                     avScoreOS += OS
                     avScoreVS += VS
                     if(r<3):
                         print('TOP3 COUNT')
                         hitTOP3+=1
-                    if(np.round(VS,1)<0.5):
-                        print('Scenario where VS low')
-                        VS_low+=1
-                        pocketVSlow.append(pAPO)
+                        if r==0:
+                            hitTOP1+=1
+                    # if(np.round(VS,1)<0.5):
+                    #     print('Scenario where VS low')
+                    #     VS_low+=1
+                    #     pocketVSlow.append(pAPO)
                         # input()
-                    break
-                if(OS>=0.1):
+                    # break
+                elif(np.round(OS,1)>=0.1):
                     print('%s Almost'%(pAPO))
                     print('OS=',OS,'VS=',VS,'JACCARD:',simScore)
                     # print(resAPO)
                     # input()
-        # input()
-    # hitTOP10 = hitTOP10/norm
-    # hitTOP3 = hitTOP3/norm
-    # avScore = avScore/norm
+            if gotHit:
+                print('nHits=',nHits)
+                if nHits>=len(groundTruth):
+                    print('breaking loop, all match found')
+                    break
+            else: 
+                r+=1 #empty places above
+            if r==10:
+                print('10 ranked reached. BREAKING')
+                break
+    
 
-    print('hitTOP10=%.2f\thitTOP3=%.2f\tJACCARD Score=%.2f\tOVERLAP Score=%.2f\tVOLUME Score=%.2f'%(np.round((hitTOP10/norm),2),np.round((hitTOP3/norm),2),
-    np.round((100*avScoreJC/norm),2),np.round((100*avScoreOS/norm),2),np.round((100*avScoreVS/norm),2)))
+    print('hitTOP10=%.3f\thitTOP3=%.3f\thitTOP1=%.3f\n\tJACCARD Score=%.2f\tOVERLAP Score=%.2f\tVOLUME Score=%.2f'%(np.round((hitTOP10/norm),3),np.round((hitTOP3/norm),3),
+    np.round((hitTOP1/norm),3),np.round((100*avScoreJC/hitTOP10),2),np.round((100*avScoreOS/hitTOP10),2),np.round((100*avScoreVS/hitTOP10),2)))
     print('NORM=',norm)
     print('VS low %d times'%VS_low)
     print(pocketVSlow)

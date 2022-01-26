@@ -337,7 +337,7 @@ def buildTestFeatures(pocket,resMap,imSub=False):
             # print(clusteredEntrances[0][1])
             isCavity=1
     else:
-        entrances=getEntrance(pocket['all_mouths'],pwDist=True)
+        entrances=getEntrance(pocket['large_mouths'],pwDist=True)
         clusteredEntrances = [e[1:] for e in entrances]
         n_entrances = len(clusteredEntrances)
     
@@ -429,7 +429,7 @@ def buildGeomFeatures(pocket,imSub=False):
             # print(clusteredEntrances[0][1])
             isCavity=1
     else:
-        entrances=getEntrance(pocket['all_mouths'],pwDist=True)
+        entrances=getEntrance(pocket['large_mouths'],pwDist=True)
         clusteredEntrances = [e[1:] for e in entrances]
         n_entrances = len(clusteredEntrances)
     
@@ -610,7 +610,7 @@ def buildTestFeaturesUnique(pocket,resMap,imSub=False):
             # print(clusteredEntrances[0][1])
             isCavity=1
     else:
-        entrances=getEntrance(pocket['all_mouths'],pwDist=True)
+        entrances=getEntrance(pocket['large_mouths'],pwDist=True)
         clusteredEntrances = [e[1:] for e in entrances]
         n_entrances = len(clusteredEntrances)
     
@@ -1350,7 +1350,7 @@ class Scoring(object):
 ###########################################################################
 ####################################
 
-def getRank(pList,resMap,name, mode,loadTrained = True,structureName='',isPedro=False):
+def getRank(pList,resMap,name, mode,loadTrained = True,structureName='',isPedro=False,noSorting=False):
     """
     USer oriented ranking function
     """
@@ -1435,7 +1435,10 @@ def getRank(pList,resMap,name, mode,loadTrained = True,structureName='',isPedro=
     return_featList = featListGeom
     if(mode ==1): 
         print("\n**50/50 geometry and chemistry ranking mode**\n")
-        rankedIndexes,rankedIndexesSub,numericalScore,numericalScoreSub = score.getRanking(featListGeom,featListChem)
+        if(not noSorting):
+            rankedIndexes,rankedIndexesSub,numericalScore,numericalScoreSub = score.getRanking(featListGeom,featListChem)
+        else:
+            rankedIndexes,rankedIndexesSub,numericalScore,numericalScoreSub = score.getRanking_noSorting(featListGeom,featListChem)
         # if(name=="IF10_noDensity"):
         #     rankedIndexes,rankedIndexesSub,numericalScore,numericalScoreSub = score.getRanking(featListGeom,[f[:22] for f in featListChem])
         # else:
@@ -1849,15 +1852,145 @@ def getRank_loopUnique(featList,model1):
     return returnDict
 
 
+def rerankVol_withSub(originalPlist,rankingForest,scoresIF,map_direct,map_reverse,keep=10,cutoff=1):
+    '''
+    New ranking method which uses forest for top10 and volume among them. But among top10 subpockets are not counted as filling the ranking.
+    (r index not progressing)
+    '''
+    r=0
+    r_in=0
+    selfContained = set()
+    alreadyDoneSub=set()
+    pListTop = []
+    vols =[]
+    scores=[]
+
+    num_sub=0
+    
+    while ((r<10) and (r_in < rankingForest.size)and (scoresIF[rankingForest[r_in]]<=cutoff)):
+        pi,si = map_direct[rankingForest[r_in]]
+        
+        if(si is not None):
+    # ------------------- SUBPOCKET--------------------------- 
+            if(pi in selfContained):
+                #skip subpocket of a master pocket ahead in the ranking
+                #going to next element (positions do not progress in the r
+                r_in+=1
+                continue # r index does not advance
+            n_subs=0
+            pocket = originalPlist[pi]['subpockets'][si] #IS A SUBPOCKET
+            pListTop.append(pocket)
+            volume,_A,_err = pocket['node'].volume()
+            vols.append(volume)
+            scores.append(scoresIF[map_reverse[(pi,si)]])
+
+            if(len(originalPlist[pi]['subpockets'])==1):
+                #Single subpocket--> master pocket in black list
+                selfContained.add(pi)
+            else:
+                alreadyDoneSub.add((pi,si))
+        else:
+            # --------- PARENT POCKET (or with no subpockets) --------------------
+            if(pi in selfContained): #SKIP PARENT POCKET OF A SINGLE SUBPOCKET ALREADY EXPRESSED IN THE RANKING
+                r_in+=1
+                continue
+            selfContained.add(pi) #to filter out subpockets already expressed by the master pocket
+            
+            subs = originalPlist[pi]['subpockets']
+            n_subs = len(subs)
+            # print('Master pocket with %d subpockets'%n_subs)
+            # pocket = originalPlist[pi]
+            # vol,_A,_err = pocket['node'].volume()
+            # print('Master volume = ',vol)
+            if(n_subs==0):
+                #pocket with no subpockets
+                pocket = originalPlist[pi]
+                pListTop.append(pocket)
+                volume,_A,_err = pocket['node'].volume()
+                vols.append(volume)
+                scores.append(scoresIF[map_reverse[(pi,si)]])
+            for i in range(n_subs):
+                if((pi,i)in alreadyDoneSub):
+                    # I think this scenario is very unlikely
+                    pass
+                else:
+                    num_sub+=1
+                    subpocket = subs[i]
+                    pListTop.append(subpocket)
+                    volume,_A,_err = subpocket['node'].volume()
+                    vols.append(volume)
+                    scores.append(scoresIF[map_reverse[(pi,i)]])
+                    # print('sub%d, vol=%.2f'%(i,volume))
+
+        r+=1
+        r_in+=1
+        
+    print('Original number of pockets considered',len(vols))
+    print('number of subpockets opened:',num_sub)
+    # print(vols)
+    ind = np.argsort(vols)[::-1]
+    pListTop = np.array(pListTop)[ind]
+    vols = np.array(vols)[ind]
+    print('sorted volumes:',vols)
+
+    return pListTop[:keep],scores
 
 
-### HP ### TO TRY AS SPECIAL RANKING MODES
-#1
-# In out mode geom = first ranked
-# In out chem = other if not identical
-# Average: remaining places 
+def rerankVol_noSub(originalPlist,rankingForest,scoresIF,map_direct,map_reverse,keep=10,cutoff=1):
+    '''
+    New ranking method which uses forest for top10 and volume among them. But among top10 subpockets are not counted as filling the ranking.
+    (r index not progressing)
+    NOTE: Not skipping master pocket of single subpocket already expressed. This because in any case the volume will bring forward the master pocket.
+    '''
+    r=0
+    r_in=0
+    selfContained = set()
+    alreadyDoneSub=set()
+    pListTop = []
+    vols =[]
+    scores=[]
+    while ((r<10) and (r_in < rankingForest.size) and (scoresIF[rankingForest[r_in]]<=cutoff)):
+        pi,si = map_direct[rankingForest[r_in]]
+        if(si is not None):
+    # ------------------- SUBPOCKET--------------------------- 
+            if(pi in selfContained):
+                #skip subpocket of a master pocket ahead in the ranking
+                #going to next element (positions do not progress in the r
+                r_in+=1
+                continue # r index does not advance
+            
+            pocket = originalPlist[pi]['subpockets'][si] #IS A SUBPOCKET
+            pListTop.append(pocket)
+            volume,_A,_err = pocket['node'].volume()
+            vols.append(volume)
+            
+            scores.append(scoresIF[map_reverse[(pi,si)]])
+            # if(len(originalPlist[pi]['subpockets'])==1):
+            #     #Single subpocket--> master pocket in black list
+            #     selfContained.add(pi)
+        else:
+            # --------- PARENT POCKET (or with no subpockets) --------------------
+            # if(pi in selfContained): #SKIP PARENT POCKET OF A SINGLE SUBPOCKET ALREADY EXPRESSED IN THE RANKING
+            #     r_in+=1
+            #     continue
+            selfContained.add(pi) #to filter out subpockets already expressed by the master pocket
+            pocket = originalPlist[pi]
+            pListTop.append(pocket)
+            volume,_A,_err = pocket['node'].volume()
+            vols.append(volume)
+            scores.append(scoresIF[map_reverse[(pi,si)]])
+            
 
-
+        r+=1
+        r_in+=1
+        
+    
+    # print(vols)
+    print('Original number of pockets considered keeping only master pockets or single clusters',len(vols))
+    ind = np.argsort(vols)[::-1]
+    vols = np.array(vols)[ind]
+    pListTop = np.array(pListTop)[ind]
+    return pListTop[:keep],scores
 
 
 

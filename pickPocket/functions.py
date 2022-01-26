@@ -1,4 +1,5 @@
 
+from html import entities
 from pickPocket import  global_module
 from pickPocket.global_module import libname
 # from global_module import Errorg
@@ -756,7 +757,9 @@ def saveP(fileNumbering,savingDir,cluster,isPQR,subPockets = []):
         z = coordinates[:,2]
         r = coordinates[:,3]
         for i in range(n):
-            outFile.write("ATOM  %5d  %-3s %3s %c%4d    %8.3f%8.3f%8.3f%8.4f%8.4f\n" % (i,"C","NSR",'A',1,x[i],y[i],z[i],0.,r[i]) )
+            # outFile.write("ATOM  %5d  %-3s %3s %c%4d    %8.3f%8.3f%8.3f%8.4f%8.4f\n" % (i,"C","NSR",'A',1,x[i],y[i],z[i],0.,r[i]) )
+            outFile.write("{:<6s}{:>5d} {:<5s}{:>3s} {:1s}{:>5s}   {:>8.3f} {:>8.3f} {:>8.3f} {:>8.4f} {:>8.4f}\n".format('ATOM',i+1,'C','NSR','A','1',
+                    x[i],y[i],z[i],0.,r[i]))
         outFile.close()
     if(subPockets):
         for k,(sub,_btlnk) in enumerate(subPockets):
@@ -782,7 +785,7 @@ def saveP(fileNumbering,savingDir,cluster,isPQR,subPockets = []):
 
 
 
-def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth = None, subPockets = []):
+def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth = None, entrances=[],subPockets = []):
     """
      Saves on file the list of atoms relative to the input cluster
      and information on mouths: tangent atom coordinates, probe radius, normal, residues involved
@@ -848,7 +851,28 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
     #     outFileP.write("ATOM  %5d%5s%4s%2s%4s    %8.3f%8.3f%8.3f%8.3f%8.3f\n" % (r+1,resMap[r]['resAtom'],resMap[r]['resName'],resMap[r]['resChain'],resMap[r]['resNum'],
     #     resMap[r]['coord'][0],resMap[r]['coord'][1],resMap[r]['coord'][2],resMap[r]['charge'],resMap[r]['radius']))
     
-    
+    #ENTRANCES:
+    if(len(entrances)==0):
+        pass
+    else:
+        outFile.write("\n\n ====== \n\n")
+        n = len(entrances)
+        outFile.write("#CLUSTERED ENTRANCES (rmin>2.5 and only when more than one). Total number %d:\n" %n)
+        for e in entrances:
+            ec = e[0] #entrance center
+            radius = e[2]
+            depth = e[1]
+            size = e[4]
+            residues = set([r[1] for r in e[5]]) #in case redundancy for multiple chains..
+            normal = e[6]
+            n_origin = ec
+            n_end = ec + 10*normal
+            outFile.write("\n Normal: ({:.2f},{:.2f},{:.2f}), entrance coordinate: ({:.2f},{:.2f},{:.2f}), effective radius:{:.2f},clustered exit spheres: {:d}\
+            \nVMD--> draw cylinder {{{:.2f} {:.2f} {:.2f}}} {{{:.2f} {:.2f} {:.2f}}} radius 0.2 filled yes\nVMD--> draw cone {{{:.2f} {:.2f} {:.2f}}} {{{:.2f} {:.2f} {:.2f}}} radius {:.1f}\n"
+            .format(*normal,*ec,radius,size, *n_origin, *n_end,*n_origin, *n_end,radius))
+            outFile.write("RESIDUES:")
+            for r in residues:
+                outFile.write('\n'+ r)
 
     #MOUTHS
     #bmout and smouth list [id_tangent atoms, radius of probe]
@@ -1347,7 +1371,7 @@ def loadDict(fileName):
 
 
 
-def skeleton(pocket,prot_atoms,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=True,plotEntrance=False): 
+def skeleton(pocket,prot,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=True,plotSphere=False,extendedProperties=False): 
     """
     Argument must be a pocket (needs the field subpocket--which could be empty)
     """
@@ -1356,6 +1380,7 @@ def skeleton(pocket,prot_atoms,minsize=10,minsizeb = 10,weighted = False,sizeThM
     from mpl_toolkits import mplot3d
     from matplotlib.pyplot import cm
     from matplotlib.lines import Line2D
+
 
     fig=plt.figure(figsize = (8,6))
     ax = fig.add_subplot(111, projection='3d')
@@ -1381,8 +1406,8 @@ def skeleton(pocket,prot_atoms,minsize=10,minsizeb = 10,weighted = False,sizeThM
     else:
         subpockets=[]
 
-    largemouths = pocket['mouths']
-    allmouths = pocket['all_mouths']
+    largemouths = pocket['large_mouths']
+    allmouths = pocket['mouths']
 
     if sizeThMouth:
         mouths = largemouths
@@ -1391,7 +1416,7 @@ def skeleton(pocket,prot_atoms,minsize=10,minsizeb = 10,weighted = False,sizeThM
     
 
     # entrances = pocket['entrances']
-    entrances=getEntrance(mouths,pwDist=True)
+    entrances=getEntrance(mouths,pwDist=True,extendedProperties=extendedProperties,structure=prot)
 
 
     for a in filt_wa:
@@ -1445,17 +1470,22 @@ def skeleton(pocket,prot_atoms,minsize=10,minsizeb = 10,weighted = False,sizeThM
 
 
     for en,e in enumerate(entrances):
-        ec = e[0]
+        ec = e[0] #entrance center
         radius = e[2]
         depth = e[1]
         size = e[4]
         print("entrance %d , r= %.2f , d = %.2f, size= %d" %(en+1,radius,depth,size))
-        if(plotEntrance):
-            label = "entrance %d "%en +"Av depth= "+str(depth) + "Eff radius= "+str(radius)
+        # label = "entrance %d "%en +"Av depth= "+str(depth) + "Eff radius= "+str(radius)
+        label = "entrance %d "%en +" Eff radius= "+str(radius)+"\n res="+str([r[1] for r in e[5]])
+        if(plotSphere):
             #draw sphere 
             xs,ys,zs=drawSphere(ec[0], ec[1], ec[2], radius)
             ax.plot_wireframe(xs, ys, zs, linewidth = 0.2, color = 'gray')
-            ax.scatter(ec[0],ec[1],ec[2],marker=".", s = 100, label=label)
+        
+        if(extendedProperties):
+            ax.scatter(ec[0],ec[1],ec[2],marker=".", s = 500, label=label)
+            enormal = e[6]
+            ax.quiver(ec[0],ec[1],ec[2],enormal[0],enormal[1],enormal[2],lw =2,color="orange",length = 0.5*depth)
             # ax.plot_surface(xs, ys, zs,  rstride=4, cstride=4, color='g', linewidth=0, alpha=0.5)
 
     
@@ -1476,7 +1506,7 @@ def skeleton(pocket,prot_atoms,minsize=10,minsizeb = 10,weighted = False,sizeThM
 
         IDmouthAtoms =  node.t_atoms
 
-        normal,atom_triplet = get_plane(prot_atoms,IDmouthAtoms) 
+        normal,atom_triplet = get_plane(prot.atoms,IDmouthAtoms) 
         o = atom_triplet[0] # o is a reference atom belonging to the plane
         normal = np.sign(np.dot((refProbe-o),normal))*normal #normal points towards the reference probe
 
@@ -1506,7 +1536,7 @@ def skeleton(pocket,prot_atoms,minsize=10,minsizeb = 10,weighted = False,sizeThM
 
     return
 
-def getEntrance(mouths,pwDist =False):
+def getEntrance(mouths,pwDist =False,extendedProperties=False,structure=None):
     # rmin = 2.5
     """
     Returns a list of tuples containing coordinate, average depth and rough mouth size estimation of the mouth
@@ -1518,6 +1548,8 @@ def getEntrance(mouths,pwDist =False):
     TODO : 1. Add res types at entrances --> Useful for chemical characterization
            2. Extract average normal <-- very interesting from user perspective
            3. Do the same for bottlenecks (sometimes you can have very close bottlnecks mouths)
+
+    Structure is the clustering.protein container
     """
     #1.  Indentification of clustered exit spheres and gathering in a container 
     # mouths = list(filter(lambda x : x[0].r > rmin , mouths))
@@ -1525,15 +1557,16 @@ def getEntrance(mouths,pwDist =False):
     X = np.empty((0,4))
     aggregationList={}
     #each one is a singleton
-    # indexMap={}
+
+    #MOUTHS CONTAIN:
+    #aggregationList = list of (clusterNode,depth)
+    
+
     for s,m in enumerate(mouths):
         #print(m[0].r,m[1])
-        X = np.vstack((X,np.append(m[0].coord,m[0].r)))
-        # indexMap[s]=s
+        X = np.vstack((X,np.append(m[0].coord,m[0].r))) #x,y,z,r coordinate array
         aggregationList[s]={m} #each sphere initially a singleton 
-        # dendogram.append(basicNode())
-    # print("Stacked array:")
-    # print(X)
+
     d,condition = pdist_weight(X,pwDist)
     index = np.where(d<condition)[0]
     #NOT WORKING IF SORTED
@@ -1619,7 +1652,15 @@ def getEntrance(mouths,pwDist =False):
     
     #2. Population of output list and computation of entrance properties
     #sort aggregation list by number of members
-    
+
+    # HERE GATHERING PROPERTIES OF ENTRANCES..
+    if extendedProperties:
+        if(structure is None):
+            print('need protein residues passed to return residues information of entrances')
+            extendedProperties=False
+        else:
+            resMap = structure.resMap
+            atoms = structure.atoms
     entrances=[]
     for ids,a in sorted(aggregationList.items(),key = lambda x: len(x[1]),reverse=True):
         size = len(a)
@@ -1638,7 +1679,35 @@ def getEntrance(mouths,pwDist =False):
         r_av  = np.round(r_av,2)
         cm = np.round(cm,4)
         d_av=np.round(d_av,1)
-        entrances.append((cm,d_av,r_eff,r_av,size))
+        if not extendedProperties:
+            entrances.append((cm,d_av,r_eff,r_av,size))
+        else:
+            resInd = np.array([i[0].t_atoms for i in a])
+            # print(resInd)
+            resInd = np.unique(resInd)
+            # print(resInd)
+            # print()
+            resEntrance = []
+            for i in resInd:
+                resid = resMap[i]['resNum']
+                rname = resMap[i]['resName']
+                try:
+                    rChain = resMap[i]['resChain']
+                except KeyError:
+                    rChain = 'A'
+                resEntrance.append((resid,rname,rChain))
+            resEntrance = set(resEntrance)
+            #unique normal x entrance
+            normals=[]
+            for s in a:
+                normal,atom_triplet = get_plane(atoms,s[0].t_atoms) 
+                o = atom_triplet[0] # o is a reference atom belonging to the plane
+                refProbe = s[0].coord
+                normal = np.sign(np.dot((refProbe-o),normal))*normal # orient it towards refProbe
+                normals.append(normal)
+            # print(normals)
+            av_normal=np.average(normals,axis=0)
+            entrances.append((cm,d_av,r_eff,r_av,size,resEntrance,av_normal))
 
     return entrances
 
@@ -1709,3 +1778,69 @@ def centerOfMass(verts):
     CM = np.mean(verts,axis=0)
 
     return CM
+
+
+
+def matchMeasure(ligand_coord_file,pocketAtoms_file,distanceTh=5.):
+    '''Utility function to asses pocket performance.
+    Supports ligands in xyz file and assumes PQR or PDB:q::q contains CHAIN'''
+    comment =['#', 'CRYST[0-9]?']
+    remark = ['REMARK']
+    termination = ['HEADER','TER', 'END', '\n']
+    skip = comment+remark+termination
+    skip = '(?:% s)' % '|'.join(skip)
+
+    # Assuming we always have chain
+    resInd = 5
+    coordInd = resInd +1
+
+
+
+    ligFile=open(ligand_coord_file,'r')
+    ligand_coord = np.loadtxt(ligFile)
+
+    pFile=open(pocketAtoms_file,'r')
+    pocketsCoord=[]
+    for line in pFile: 
+        if(re.match(skip,line)): 
+            continue 
+        
+        line = line.split()
+        content=list(map(float, line[coordInd:coordInd+3]))
+        
+        pocketsCoord.append(content)
+    pocketsCoord = np.array(pocketsCoord)
+
+
+    print("Ligand coords:",ligand_coord)
+    print("\nPockets coord:",pocketsCoord)
+
+    n_ligand = ligand_coord.shape[0]
+    n_pocket = pocketsCoord.shape[0]
+
+        # print("Number of atoms ligand=%d\n Number of atoms pocket=%d" %(n_ligand,n_pocket))#CHECK
+
+    d = np.empty(n_ligand*n_pocket)
+
+    d,_flag = Pdist_C(ligand_coord,pocketsCoord)
+
+    rowmap = np.ones(n_pocket,bool)*False
+    n_inLig=0
+    for i in range(n_ligand):
+        rw = d[i*n_pocket:(i+1)*n_pocket]<=distanceTh #= row: distance relations between atom ligand and all pocket atoms"
+        rowmap = np.logical_or(rw,rowmap)
+        n_inLig+=np.any(rw) #at least one per row = one hit
+    n_inP= np.sum(rowmap)#can be seen as a mask where a true entry is a hit, a pocket atom within the distance threshold
+
+    matchScore = n_inLig/n_ligand
+    coverageScore = n_inP/n_pocket
+
+    print("Overlap Score = ",matchScore)
+    print("Volume Score = ",coverageScore)
+
+    return 
+
+
+
+
+

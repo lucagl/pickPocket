@@ -30,6 +30,7 @@
 ###################################################################################################
 
 
+from selectors import EpollSelector
 from pickPocket import global_module
 from pickPocket.global_module import Crono
 from pickPocket.global_module import Error
@@ -37,7 +38,7 @@ from pickPocket.global_module import Error
 from pickPocket.data_containers import ClusterNode
 from pickPocket.protein_class import Protein
 
-from pickPocket.functions import new_probe,setup_NSInput,setUP_accurateTriang
+from pickPocket.functions import getEntrance, new_probe,setup_NSInput,setUP_accurateTriang
 from pickPocket.functions import Pdist_C,getIndex,crange
 
 from pickPocket.train_classifier import getRank
@@ -686,8 +687,9 @@ class NS_clustering(object):
         return resInfo
 
 
-    def printInfo(self,keep,rankingThreshold,mode = 1, type = "IF10", saveSpheres=False,getRes=True,useCNN = False):
+    def printInfo(self,keep,rankingThreshold,mode = 1, type = "IF10", saveSpheres=False,getRes=True,useCNN = False,volumeRank=False):
         from collections import defaultdict
+        from pickPocket.train_classifier import rerankVol_withSub
         #TODO: If subpocket high in ranking, print it instead of master? High in ranking means that is among first 10...
         err=Error()
 
@@ -711,32 +713,23 @@ class NS_clustering(object):
         self.filteredP=sorted(self.filteredP, key = lambda x: x['node'].count)[::-1] #useless
         
         numberPockets = len(self.filteredP) 
-        # count_Threshold = global_module.count_Threshold 
-        # weight = count_Threshold
-        # pList=sorted(pockets, key = lambda x: x['node'].score(weight,len(x['btlnks'])))[::-1]
         
-        mainScore,subScore,featureList,map_direct,map_reverse = getRank(self.filteredP,self.protein.resMap,name=type,mode=mode,structureName =self.pdbFolder_path+self.pFilename,isPedro=useCNN )
+        ## PRUNING HERE
+        # A. Vol based
+        #   1. Cutoff below minimum observed volume
+        #   2. Cutoff above average vol * 2 std ?
+        # B. Chem based (but here I would mainly trust isolation forest..)
+        #   Cutoff below minimum hydrophilicity-->similar idea of Fpocket, but fPocket at the end does not implement it (and hydrophobicity ?)
 
-        rankedIndexes = mainScore[0]
-        rankedIndexesSub = subScore[0]
-        scoreMaster = mainScore[1]
-        scoreSub = subScore[1]
+
+
+
+
+
+
+        #####################################################3
         
-
-        # print(rankedIndexes.size,rankedIndexesSub.size)
-        print("%d CANDIDATE POCKETS" %(len(self.filteredP)))
-
-        # print(rankedIndexes[:10])
-        # print(scoreMaster[:10])
-        print("%.2f CUTOFF"%cutOff)
-        # print(np.round(scoreMaster,2))
-        # print(np.where(np.round(scoreMaster,2)<cutOff))
-        print("MAX number pockets displayed (without considering redundancies): ",min(len(np.where(scoreMaster<cutOff)[0]),keep))
-
-        # print(rankedIndexesSub[:10])
-        # print(subScore[1][:10])
         
-
         resultFile=open(self.pdbFolder_path+"/"+"output_"+self.pFilename+".txt",'w')
         # resultFile.write("**RANKED POCKETS FOUND FOR "+self.pFilename+" **  \n")
         resultFile.write("%d CANDIDATE POCKETS FOUND FOR "%(len(self.filteredP))+self.pFilename+" **  \n")
@@ -751,211 +744,275 @@ class NS_clustering(object):
             err.info = "Error in printing of pockets files of "+self.pFilename
             return err
 
-        
-        selfContained = set()
-        redundantList = defaultdict(list)
-        # skippedSet=set()
-        #OBS in the following pi is the master pocket index
-        k=0 # runs on sorted indexes
-        r=1 # runs on ranked positions
-        skipped=0
-        kept=[]
-        while((r<=keep) and (k<rankedIndexes.size) and (scoreMaster[k]<cutOff)):
+        if (not volumeRank):
+
+
+            mainScore,subScore,featureList,map_direct,map_reverse = getRank(self.filteredP,self.protein.resMap,name=type,mode=mode,structureName =self.pdbFolder_path+self.pFilename,isPedro=useCNN )
+
+            rankedIndexes = mainScore[0]
+            rankedIndexesSub = subScore[0]
+            scoreMaster = mainScore[1]
+            scoreSub = subScore[1]
             
-            sub=[] #NOTE: In general don't print subs in only one
-            # print("\nindex = ", rankedIndexes[k])
-            pi,si = map_direct[rankedIndexes[k]]
-            # print(pi,si)
-            #       SUBPOCKET DIRECTLY RANKED
-            if(si is not None):
-                # print("I'm a subpocket")
-                if(pi in selfContained):
-                    #going to next element (positions do not progress in the ranking) since sub contained in master pocket higher in ranking
-                    print("Subpocket already extpressed by master pocket, skipping")
-                    # skippedSet.add(rankedIndexes[k])
-                    skipped+=1
-                    k+=1
-                    continue
-                sp = self.filteredP[pi]['subpockets'] #subpocket list of parent pocket
-                p = sp[si]
-                kept.append(p)
-                # ++++ INFO ++++
-                print("\nPocket number",r)
-                print("Score = ",scoreMaster[k])
-                resultFile.write("\nPocket number" +str(r))
-                resultFile.write("\n Score = %.2f\n"%scoreMaster[k])
+            
+            # print(rankedIndexes.size,rankedIndexesSub.size)
+            print("%d CANDIDATE POCKETS" %(len(self.filteredP)))
 
+            # print(rankedIndexes[:10])
+            # print(scoreMaster[:10])
+            print("%.2f CUTOFF"%cutOff)
 
-                # print(featureList[map_reverse[(pi,si)]])
+            print("MAX number pockets displayed (without considering redundancies): ",min(len(np.where(scoreMaster<cutOff)[0]),keep))
+        # print(np.round(scoreMaster,2))
+        # print(np.where(np.round(scoreMaster,2)<cutOff))
+            selfContained = set()
+            redundantList = defaultdict(list)
+            # skippedSet=set()
+            #OBS in the following pi is the master pocket index
+            k=0 # runs on sorted indexes
+            r=1 # runs on ranked positions
+            skipped=0
+            kept=[]
+            while((r<=keep) and (k<rankedIndexes.size) and (scoreMaster[k]<cutOff)):
                 
-                ### check correct indexing:
-                # print(p['node'].count)
-                
-                ## TODO: change with a simple renaming: the triangulation was already performed for volume computation..
-                err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path) #to save triangulation of top ranked pockets 
+                sub=[] #NOTE: In general don't print subs in only one
+                # print("\nindex = ", rankedIndexes[k])
+                pi,si = map_direct[rankedIndexes[k]]
+                # print(pi,si)
+                #       SUBPOCKET DIRECTLY RANKED
+                if(si is not None):
+                    # print("I'm a subpocket")
+                    if(pi in selfContained):
+                        #going to next element (positions do not progress in the ranking) since sub contained in master pocket higher in ranking
+                        print("Subpocket already extpressed by master pocket, skipping")
+                        # skippedSet.add(rankedIndexes[k])
+                        skipped+=1
+                        k+=1
+                        continue
+                    sp = self.filteredP[pi]['subpockets'] #subpocket list of parent pocket
+                    p = sp[si]
+                    kept.append(p)
+                    # ++++ INFO ++++
+                    print("\nPocket number",r)
+                    print("Score = ",scoreMaster[k])
+                    resultFile.write("\nPocket number" +str(r))
+                    resultFile.write("\n Score = %.2f\n"%scoreMaster[k])
 
 
-                if(err.value==1):
-                    print("<<WARNING>> Cannot perform triangulation of p%d" %k)
-                    err.info =err.info+ "--> Cannot perform triangulation of p%d" %k
-                # ** Only for saving methods
-                sm = [p['node']] #by definition a subpocket as a single mouth which is its conventional entry
-                bm= p['btlnks']
-                #************
-
-                # correctedRanking = rank-len(skippedSet)
-                n_subs = len(sp)
-                if(n_subs==1):
-                    print("Single subpocket, master pocket in black list")
-                    selfContained.add(pi)
-                else:
-                    redundantList[pi].append(r)
+                    # print(featureList[map_reverse[(pi,si)]])
                     
-                    ind = map_reverse[(pi,None)]
-                    rank = np.where(rankedIndexes == ind)[0][0]+1
-                    print("\n **INFO: is subpocket of (absolute rank): p"+str(rank)) 
-                # print(ind)
-                    # cannot account for final ranking ahead but can point correctly to previously ranked ones. So useless, since if master pocket expressed I'm not giving this
+                    ### check correct indexing:
+                    # print(p['node'].count)
+                    
+                    ## TODO: change with a simple renaming: the triangulation was already performed for volume computation..
+                    err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path) #to save triangulation of top ranked pockets 
 
-                
-            else:
-                #       MASTER POCKET   
-                # Here the ranked pocket could contain subpockets
-                # print("I'm a parent pocket")
-                if(pi in selfContained):
-                    # Here only if a SINGLE subpocket was higher in the ranking, this situation is likely to be over redundant
-                    print("Parent pocket whose single subpocket already expressed in the ranking")
-                    # skippedSet.add(rankedIndexes[k])
-                    skipped+=1
-                    k+=1
-                    #PROBLEM <------
-                    # **** What about if all its subpockets did hit? I am "conduming" a position in the ranking.. **
-                    continue
-                if(pi in redundantList):
-                    #One of its subpockets is higher in ranking --> point the user to it
-                    print("NOTE: Is a larger container of Pocket(s) "
-                    +redundantList[pi].tpString().replaceAll("[\\[\\]]", "").replaceAll(",", "&"))
-                    resultFile.write("\nNOTE: Is a larger container of Pocket(s) "
-                    +redundantList[pi].tpString().replaceAll("[\\[\\]]", "").replaceAll(",", "&"))
-                selfContained.add(pi)
-                
-                p = self.filteredP[pi]
-                
-                # ** Only for saving methods
-                sm = [i for i,_d in p['mouths']]
-                bm= p['btlnks']
-                 
-                #***********
 
-                n_subs = len(p['subpockets'])
+                    if(err.value==1):
+                        print("<<WARNING>> Cannot perform triangulation of p%d" %k)
+                        err.info =err.info+ "--> Cannot perform triangulation of p%d" %k
+                    # ** Only for saving methods
+                    sm = [p['node']] #by definition a subpocket as a single mouth which is its conventional entry
+                    bm= p['btlnks']
+                    #************
 
-                # ************** TO CHECK ********
-                if(n_subs==1): # promote it if is high in ranking CHECK <-----
-                    ind = map_reverse[(pi,0)]
-                    rank = np.where(rankedIndexesSub == ind)[0][0] #- len(skippedSet) # without correction to be more exigent
-                    # print(rank)
-                    # print(subScore[1][rank])
-                    #if(rank<10):
-                    if(np.round(scoreSub[rank],2)<0.5): 
-                        # so is independent on eventual correction on ranking 
-                        #Very much prone to accept subpockets, esecially for EIF where scores are generally lower
-                        print("Single subpocket elected as better representative of master pocket..")
-                        print("SubRank (not accounting for rearrangements):",rank+1)
-                        absRank = np.where(rankedIndexes == ind)[0][0]
-                        print("SubScore = ",scoreSub[rank])
-                        print("absRank:",absRank+1)
-                        print("Score = ",scoreMaster[absRank])
-                        p = p['subpockets'][0]
-                        sm = [p['node']]
-                        bm= p['btlnks']       
+                    # correctedRanking = rank-len(skippedSet)
+                    n_subs = len(sp)
+                    if(n_subs==1):
+                        print("Single subpocket, master pocket in black list")
+                        selfContained.add(pi)
                     else:
-                        pass
-                #***********************
-                kept.append(p)
-                # ++++ INFO ++++
-                print("\nPocket number",r)
-                print("(Master pocket) Score = ",scoreMaster[k])
-                resultFile.write("\nPocket number" +str(r))
-                resultFile.write("\n Score = %.2f\n"%scoreMaster[k])
-                # print(featureList[map_reverse[(pi,si)]])
-                ### check:
-                # print(p['node'].count)
-                
-                # err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path)
-                # if(err.value==1):
-                #     print("<<WARNING>> Cannot perform triangulation of p%d" %k)
-                #     err.info =err.info+ "--> Cannot perform triangulation of p%d" %k
-                
-                if(n_subs>1):
-                    sub = [] # container for printing method [(i['node'],i['btlnks']) for i in p['subpockets']] 
-                    print(str(n_subs)+" Subpockets:")
-                    resultFile.write(" Subpockets: \n")
-                    rank=[]
-                    for s in range(n_subs):
-                        # print(pi,s)
-                        try:
-                            rank.append(np.where(rankedIndexesSub==map_reverse[(pi,s)])[0][0])
-                        except KeyError:
-                            print("Tried to find skipped subpocket")
-                            rank.append(rankedIndexesSub.size) # make sure is at the bottom of the rank
-                            scoreSub=np.append(scoreSub,1)
-                    indS = np.argsort(rank)
-                    # print(rank)
-                    # print("INDS=",indS)
-                    # print(rankedIndexes.size)
-                    good_Subs=0
-                    for i,sub_i in enumerate(indS):
-                        # print(sub_i,rank[sub_i],scoreSub[rank[sub_i]])
-                        if(scoreSub[rank[sub_i]]<0.5):
-                            good_Subs+=1
-                            try:
-                                absRank = np.where(rankedIndexes == map_reverse[(pi,sub_i)])[0][0]
-                            except KeyError:
-                                # print("should not be here?")
-                                # print(pi,i)
-                                scoreMaster = np.append(scoreMaster,1)
-                                absRank = rankedIndexes.size
-                            print("Sub ", i, "SubRanking (not accounting for rearrangements ) = ", rank[sub_i] +1 )
-                            print("Abs ranking = ", absRank +1, "score=", scoreMaster[absRank] )
-                            print((pi,sub_i),"ind="+str(map_reverse[(pi,sub_i)]),'subScore',scoreSub[rank[sub_i]])
-                            resultFile.write("  Subpocket %d. subScore = %.2f\n"%(i,scoreSub[rank[sub_i]]))
-                            # print(featureList[map_reverse[(pi,sub_i)]])
-                            sp=p['subpockets'][sub_i]['node']
-                            err = sp.buildTriang(triangName='sub'+str(r)+'_'+str(i+1),savePath= self.save_path)
-                            sub.append((sp,p['subpockets'][sub_i]['btlnks']))
-                            if(err.value==1):
-                                # print("Increase Self Intersection Grid to compute this pocket!")
-                                print("<<WARNING>> Cannot perform triangulation of sub%d_%d" %(r,sub_i))
-                                err.info = err.info+ "--> Cannot perform triangulation of sub%d_%d" %(r,sub_i)
-                        else:
-                            print("BAD SUBPOCKET skipping")
-                            resultFile.write("  Subpocket %d skipped since score larger than 0.5 (anomaly)\n"%i)
-                    if(good_Subs==1):
-                        print("Only one good subpocket--> Promoted to master")
-                        # print("Consider only the subpocket")
-                        p = p['subpockets'][indS[0]]
-                        sm = [p['node']]
-                        bm= p['btlnks']   
-                        sub=[]
-                        resultFile.write("  Only one (good) subpocket--> Promoted to master")
+                        redundantList[pi].append(r)
+                        
+                        ind = map_reverse[(pi,None)]
+                        rank = np.where(rankedIndexes == ind)[0][0]+1
+                        print("\n **INFO: is subpocket of (absolute rank): p"+str(rank)) 
+                    # print(ind)
+                        # cannot account for final ranking ahead but can point correctly to previously ranked ones. So useless, since if master pocket expressed I'm not giving this
+
                     
-                err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path)
-                if(err.value==1):
-                    print("<<WARNING>> Cannot perform triangulation of p%d" %k)
-                    err.info =err.info+ "--> Cannot perform triangulation of p%d" %k
-            # try:
-            if(saveSpheres):
-                saveP(r,self.save_path,p['node'],True,subPockets=sub)
-            if(getRes):
-                saveRes(r,self.save_path,p['node'],self.protein.resMap,self.protein.atoms,bmouth = bm,smouth = sm,subPockets = sub)
-                # saveResSimple(r,self.save_path,p['node'],self.protein.resMap)
-            # except Exception as info:
-            #     err.value=1
-            #     err.info = str(info.args) + " Causing unability to save pocket.pqr files!"
-            #     return err
-            k+=1
-            r+=1
-        print("# skipped :",skipped)
+                else:
+                    #       MASTER POCKET   
+                    # Here the ranked pocket could contain subpockets
+                    # print("I'm a parent pocket")
+                    if(pi in selfContained):
+                        # Here only if a SINGLE subpocket was higher in the ranking, this situation is likely to be over redundant
+                        print("Parent pocket whose single subpocket already expressed in the ranking")
+                        # skippedSet.add(rankedIndexes[k])
+                        skipped+=1
+                        k+=1
+                        #PROBLEM <------
+                        # **** What about if all its subpockets did hit? I am "conduming" a position in the ranking.. **
+                        continue
+                    if(pi in redundantList):
+                        #One of its subpockets is higher in ranking --> point the user to it
+                        print("NOTE: Is a larger container of Pocket(s) "
+                        +redundantList[pi].tpString().replaceAll("[\\[\\]]", "").replaceAll(",", "&"))
+                        resultFile.write("\nNOTE: Is a larger container of Pocket(s) "
+                        +redundantList[pi].tpString().replaceAll("[\\[\\]]", "").replaceAll(",", "&"))
+                    selfContained.add(pi)
+                    
+                    p = self.filteredP[pi]
+                    
+                    # ** Only for saving methods
+                    sm = [i for i,_d in p['mouths']]
+                    bm= p['btlnks']
+                    
+                    #***********
+
+                    n_subs = len(p['subpockets'])
+
+                    # ************** TO CHECK ********
+                    if(n_subs==1): # promote it if is high in ranking CHECK <-----
+                        ind = map_reverse[(pi,0)]
+                        rank = np.where(rankedIndexesSub == ind)[0][0] #- len(skippedSet) # without correction to be more exigent
+                        # print(rank)
+                        # print(subScore[1][rank])
+                        #if(rank<10):
+                        if(np.round(scoreSub[rank],2)<0.5): 
+                            # so is independent on eventual correction on ranking 
+                            #Very much prone to accept subpockets, esecially for EIF where scores are generally lower
+                            print("Single subpocket elected as better representative of master pocket..")
+                            print("SubRank (not accounting for rearrangements):",rank+1)
+                            absRank = np.where(rankedIndexes == ind)[0][0]
+                            print("SubScore = ",scoreSub[rank])
+                            print("absRank:",absRank+1)
+                            print("Score = ",scoreMaster[absRank])
+                            p = p['subpockets'][0]
+                            sm = [p['node']]
+                            bm= p['btlnks']       
+                        else:
+                            pass
+                    #***********************
+                    kept.append(p)
+                    # ++++ INFO ++++
+                    print("\nPocket number",r)
+                    print("(Master pocket) Score = ",scoreMaster[k])
+                    resultFile.write("\nPocket number" +str(r))
+                    resultFile.write("\n Score = %.2f\n"%scoreMaster[k])
+                    # print(featureList[map_reverse[(pi,si)]])
+                    ### check:
+                    # print(p['node'].count)
+                    
+                    # err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path)
+                    # if(err.value==1):
+                    #     print("<<WARNING>> Cannot perform triangulation of p%d" %k)
+                    #     err.info =err.info+ "--> Cannot perform triangulation of p%d" %k
+                    
+                    if(n_subs>1):
+                        sub = [] # container for printing method [(i['node'],i['btlnks']) for i in p['subpockets']] 
+                        print(str(n_subs)+" Subpockets:")
+                        resultFile.write(" Subpockets: \n")
+                        rank=[]
+                        for s in range(n_subs):
+                            # print(pi,s)
+                            try:
+                                rank.append(np.where(rankedIndexesSub==map_reverse[(pi,s)])[0][0])
+                            except KeyError:
+                                print("Tried to find skipped subpocket")
+                                rank.append(rankedIndexesSub.size) # make sure is at the bottom of the rank
+                                scoreSub=np.append(scoreSub,1)
+                        indS = np.argsort(rank)
+                        # print(rank)
+                        # print("INDS=",indS)
+                        # print(rankedIndexes.size)
+                        good_Subs=0
+                        for i,sub_i in enumerate(indS):
+                            # print(sub_i,rank[sub_i],scoreSub[rank[sub_i]])
+                            if(scoreSub[rank[sub_i]]<0.5):
+                                good_Subs+=1
+                                try:
+                                    absRank = np.where(rankedIndexes == map_reverse[(pi,sub_i)])[0][0]
+                                except KeyError:
+                                    # print("should not be here?")
+                                    # print(pi,i)
+                                    scoreMaster = np.append(scoreMaster,1)
+                                    absRank = rankedIndexes.size
+                                print("Sub ", i, "SubRanking (not accounting for rearrangements ) = ", rank[sub_i] +1 )
+                                print("Abs ranking = ", absRank +1, "score=", scoreMaster[absRank] )
+                                print((pi,sub_i),"ind="+str(map_reverse[(pi,sub_i)]),'subScore',scoreSub[rank[sub_i]])
+                                resultFile.write("  Subpocket %d. subScore = %.2f\n"%(i,scoreSub[rank[sub_i]]))
+                                # print(featureList[map_reverse[(pi,sub_i)]])
+                                sp=p['subpockets'][sub_i]['node']
+                                err = sp.buildTriang(triangName='sub'+str(r)+'_'+str(i+1),savePath= self.save_path)
+                                sub.append((sp,p['subpockets'][sub_i]['btlnks']))
+                                if(err.value==1):
+                                    # print("Increase Self Intersection Grid to compute this pocket!")
+                                    print("<<WARNING>> Cannot perform triangulation of sub%d_%d" %(r,sub_i))
+                                    err.info = err.info+ "--> Cannot perform triangulation of sub%d_%d" %(r,sub_i)
+                            else:
+                                print("BAD SUBPOCKET skipping")
+                                resultFile.write("  Subpocket %d skipped since score larger than 0.5 (anomaly)\n"%i)
+                        if(good_Subs==1):
+                            print("Only one good subpocket--> Promoted to master")
+                            # print("Consider only the subpocket")
+                            p = p['subpockets'][indS[0]]
+                            sm = [p['node']]
+                            bm= p['btlnks']   
+                            sub=[]
+                            resultFile.write("  Only one (good) subpocket--> Promoted to master")
+                        
+                    err = p['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path)
+                    if(err.value==1):
+                        print("<<WARNING>> Cannot perform triangulation of p%d" %k)
+                        err.info =err.info+ "--> Cannot perform triangulation of p%d" %k
+                # try:
+                if(saveSpheres):
+                    saveP(r,self.save_path,p['node'],True,subPockets=sub)
+                if(getRes):
+                    if(len(p['large_mouths'])>0):
+                        entrances = getEntrance(p['large_mouths'],pwDist=True,extendedProperties=True,structure=self.protein)
+                    else:
+                        entrances=[]
+                    saveRes(r,self.save_path,p['node'],self.protein.resMap,self.protein.atoms,bmouth = bm,smouth = sm,subPockets = sub,entrances=entrances)
+                    # saveResSimple(r,self.save_path,p['node'],self.protein.resMap)
+                # except Exception as info:
+                #     err.value=1
+                #     err.info = str(info.args) + " Causing unability to save pocket.pqr files!"
+                #     return err
+                k+=1
+                r+=1
+            print("# skipped :",skipped)
+        else:
+            print("Rerank top 10 according to volume")
+            # We also open-up all subs when available..
+            # do not sort mainScore..
+            mainScore,subScore,featureList,map_direct,map_reverse = getRank(self.filteredP,self.protein.resMap,name=type,mode=mode,structureName =self.pdbFolder_path+self.pFilename,isPedro=useCNN,noSorting=True )
+
+            rankedIndexes = mainScore[0]
+            rankedIndexesSub = subScore[0]
+            scoreMaster = mainScore[1]
+            scoreSub = subScore[1]
+            
+
+            # print(rankedIndexes.size,rankedIndexesSub.size)
+            print("%d CANDIDATE POCKETS" %(len(self.filteredP)))
+
+            # print(rankedIndexes[:10])
+            # print(scoreMaster[:10])
+            print("%.2f CUTOFF"%cutOff)
+            # print(np.round(scoreMaster,2))
+            # print(np.where(np.round(scoreMaster,2)<cutOff))
+            volumeRankedPockets,scores = rerankVol_withSub(self.filteredP,rankedIndexes,scoreMaster,map_direct,map_reverse,cutoff=cutOff)
+            kept = volumeRankedPockets
+            for r,pocket in enumerate(volumeRankedPockets):
+                
+                print("\nPocket number",r+1)
+                print('ScoreIF = ',scores[r])
+                vol,_A,_err = pocket['node'].volume()
+                print('Volume = ', vol)
+                try:
+                    sm = [i for i,_d in pocket['mouths']]
+                except:
+                    sm = [pocket['node']] #if it was a subpocket, single entrance by construction
+                bm= pocket['btlnks']
+                if(saveSpheres):
+                    saveP(r,self.save_path,pocket['node'],True)
+                if(getRes):
+                    saveRes(r,self.save_path,pocket['node'],self.protein.resMap,self.protein.atoms,bmouth = bm,smouth = sm)
+                err = pocket['node'].buildTriang(triangName='p'+str(r),savePath= self.save_path)
+
+
         return err,kept
 
 
@@ -1462,20 +1519,23 @@ def postProcess(pocketList,dendogram):
             k+=1
         # print('here')#kth subpocket within sth pcluster
         subPlist = sorted(subPlist, key = lambda x: dendogram[x[0][0]][0].score(weight,len(x[1])))[::-1]#sort according to score
-        
-        globalSubList =[{'node':dendogram[i[0][0]][0],'depth':i[0][1],'rtop':dendogram[i[0][0]][0].r,
+        # if(dendogram[i[0][0]][0].r>rmin_entrance):
+        #     Lmouths = [(dendogram[i[0][0]][0],i[0][1])]
+        # else:
+        #     Lmouths=[]
+        globalSubList =[{'node':dendogram[i[0][0]][0],'depth':i[0][1],'rtop':dendogram[i[0][0]][0].r,"large_mouths":[],
         'btlnks':[dendogram[j][0]for j in i[1]],"btlnk_info":[(dendogram[j][0].r,dendogram[j][0].count)for j in i[1]],'persistence':i[2],
         "aggregations":[(dendogram[j][0],label,dendogram[j][0].r,dendogram[j][0].left.count,dendogram[j][0].right.count) for label,j in dendogram[i[0][0]][0].get_aggregations()]} for i in subPlist]
 
         bmouths = [dendogram[i][0] for i in id_btlnk]
         smouths = [(dendogram[i][0],d) for i,d in mouthList] #Related to conventional def of pocket
         
-        all_mouths = list(filter(lambda x: dendogram[x[0]][0].r>=rmin_entrance ,id_Cshift)) #Related to geometrical constraints
-        amouths = [(dendogram[i][0],d) for i,d in all_mouths]
+        large_mouths = list(filter(lambda x: dendogram[x[0]][0].r>=rmin_entrance ,id_Cshift)) #Related to geometrical constraints
+        Lmouths = [(dendogram[i][0],d) for i,d in large_mouths] #RADIUS THRESHOLD
 
         smouths = sorted(smouths, key = lambda x: (x[0].r,x[0].count))[::-1] #sort based on radius and size so that first element is the main mouth
         dt = {"node": p, "subpockets": globalSubList, "persistence": persistence,
-        "btlnk_info":[(dendogram[i][0].r,dendogram[i][0].count) for i in id_btlnk], "btlnks":bmouths,"mouths":smouths,"all_mouths":amouths,
+        "btlnk_info":[(dendogram[i][0].r,dendogram[i][0].count) for i in id_btlnk], "btlnks":bmouths,"mouths":smouths,"large_mouths":Lmouths,
         "aggregations":[(dendogram[i][0],label,dendogram[i][0].r,dendogram[i][0].left.count,dendogram[i][0].right.count) for label,i in p.get_aggregations()]}
         richFormat.append(dt)
     # print("\n DONE ")

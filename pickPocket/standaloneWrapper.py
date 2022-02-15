@@ -1528,9 +1528,9 @@ def postProcess(pocketList,dendogram):
         "aggregations":[(dendogram[j][0],label,dendogram[j][0].r,dendogram[j][0].left.count,dendogram[j][0].right.count) for label,j in dendogram[i[0][0]][0].get_aggregations()]} for i in subPlist]
 
         bmouths = [dendogram[i][0] for i in id_btlnk]
-        smouths = [(dendogram[i][0],d) for i,d in mouthList] #Related to conventional def of pocket
+        smouths = [(dendogram[i][0],d) for i,d in mouthList] #Related to conventional def of pocket (size requirement)
         
-        large_mouths = list(filter(lambda x: dendogram[x[0]][0].r>=rmin_entrance ,id_Cshift)) #Related to geometrical constraints
+        large_mouths = list(filter(lambda x: dendogram[x[0]][0].r>=rmin_entrance ,id_Cshift)) #id_Cshift has no size requirement.. (as persistence)
         Lmouths = [(dendogram[i][0],d) for i,d in large_mouths] #RADIUS THRESHOLD
 
         smouths = sorted(smouths, key = lambda x: (x[0].r,x[0].count))[::-1] #sort based on radius and size so that first element is the main mouth

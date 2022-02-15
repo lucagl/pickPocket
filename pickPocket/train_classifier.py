@@ -343,7 +343,7 @@ def buildTestFeatures(pocket,resMap,imSub=False):
     
         if(n_entrances == 0):
             isCavity = 1 #abuse of notation, could also be a deep cleft..
-            entrances=getEntrance(pocket['mouths'],pwDist=True)  
+            entrances=getEntrance(pocket['mouths'],pwDist=True)  #does not pass the radius constraint but contains the size threshold 
             clusteredEntrances = [e[1:] for e in entrances]
             n_entrances = len(clusteredEntrances)
 

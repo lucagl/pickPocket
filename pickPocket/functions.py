@@ -794,6 +794,10 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
 
      TODO: More geometrical features such as area of the mouth
     """
+
+    rmin_bottlenecks = 2.0
+    rmin_entrance = global_module.rmin_entrance
+
     content = set() #keep trace of already saved residue
 
     offset = 5
@@ -868,7 +872,7 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
             n_origin = ec
             n_end = ec + 10*normal
             outFile.write("\n Normal: ({:.2f},{:.2f},{:.2f}), entrance coordinate: ({:.2f},{:.2f},{:.2f}), effective radius:{:.2f},clustered exit spheres: {:d}\
-            \nVMD--> draw cylinder {{{:.2f} {:.2f} {:.2f}}} {{{:.2f} {:.2f} {:.2f}}} radius 0.2 filled yes\nVMD--> draw cone {{{:.2f} {:.2f} {:.2f}}} {{{:.2f} {:.2f} {:.2f}}} radius {:.1f}\n"
+            \nVMD--> draw cylinder {{{:.2f} {:.2f} {:.2f}}} {{{:.2f} {:.2f} {:.2f}}} radius 0.2 filled yes\nVMD--> draw cone {{{:.2f} {:.2f} {:.2f}}} {{{:.2f} {:.2f} {:.2f}}} radius {:.1f} resolution 100\n"
             .format(*normal,*ec,radius,size, *n_origin, *n_end,*n_origin, *n_end,radius))
             outFile.write("RESIDUES:")
             for r in residues:
@@ -883,11 +887,13 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
         #TODO keep only largest and those with identical radius to largest
         n = len(smouth)
         outFile.write("\n\n ====== \n\n")
-        outFile.write("#Pseudo-mouths residue list. Total number %d:\n" %n)
+        outFile.write("#Pseudo-mouth list (threshold on aligned spheres and cluster size). Total number %d:\n" %n)
+        # outFile.write("\n\nPseudo-mouths list  %.1f:\n" %rmin_entrance)
         c =0
         for s in smouth:
             IDmouthAtoms = s.t_atoms
             rad = s.r
+            # if(rad>=rmin_entrance):
             coordinates = (atoms[IDmouthAtoms[0]],atoms[IDmouthAtoms[1]],atoms[IDmouthAtoms[2]])
             outFile.write("\n#Mouth {:d} of probe radius {:.2f} and atom coordinates ({:.2f},{:.2f},{:.2f}) r={:.1f},({:.2f},{:.2f},{:.2f}) r={:.1f},({:.2f},{:.2f},{:.2f}), r={:.1f})"
             .format(c,rad,*coordinates[0][0:3],coordinates[0][3],*coordinates[1][0:3],coordinates[1][3],*coordinates[2][0:3],coordinates[2][3]))
@@ -921,40 +927,42 @@ def saveRes(fileNumbering,savingDir,cluster,resMap,atoms,bmouth = None, smouth =
         bmouth = sorted(bmouth, key = lambda x: x.r)
         n = len(bmouth)
         outFile.write("\n\n ====== \n\n")
-        outFile.write("\n\n#Bottleneck mouths residue list. Total number %d:\n" %n)
+        # outFile.write("\n\n#Bottleneck mouths list. Total number %d:\n" %n)
+        outFile.write("\n\nBottlenecks with probe radius larger than %.1f:\n" %rmin_bottlenecks)
         c=0
         for b in bmouth:
             IDmouthAtoms = b.t_atoms
             rad = b.r
-            coordinates = (atoms[IDmouthAtoms[0]],atoms[IDmouthAtoms[1]],atoms[IDmouthAtoms[2]])
-            outFile.write("\n#Mouth {:d} of probe radius {:.2f} and atom coordinates ({:.2f},{:.2f},{:.2f}) r={:.1f},({:.2f},{:.2f},{:.2f}) r={:.1f},({:.2f},{:.2f},{:.2f}), r={:.1f})"
-            .format(c,rad,*coordinates[0][0:3],coordinates[0][3],*coordinates[1][0:3],coordinates[1][3],*coordinates[2][0:3],coordinates[2][3]))
-            
-            refProbe = b.coord
-            normal,atom_triplet = get_plane(atoms,IDmouthAtoms) # o is a reference atom belonging to the plane
-            o = atom_triplet[0]
-            normal = np.sign(np.dot((refProbe-o),normal))*normal #normal points towards the reference probe
-            n_origin = refProbe - np.dot(normal,(refProbe-o))*normal #projection of probe on the plane
-            n_end = refProbe + (np.dot(normal,(refProbe-o))+ offset)*normal
+            if(rad>=rmin_bottlenecks):
+                coordinates = (atoms[IDmouthAtoms[0]],atoms[IDmouthAtoms[1]],atoms[IDmouthAtoms[2]])
+                outFile.write("\n#Mouth {:d} of probe radius {:.2f} and atom coordinates ({:.2f},{:.2f},{:.2f}) r={:.1f},({:.2f},{:.2f},{:.2f}) r={:.1f},({:.2f},{:.2f},{:.2f}), r={:.1f})"
+                .format(c,rad,*coordinates[0][0:3],coordinates[0][3],*coordinates[1][0:3],coordinates[1][3],*coordinates[2][0:3],coordinates[2][3]))
+                
+                refProbe = b.coord
+                normal,atom_triplet = get_plane(atoms,IDmouthAtoms) # o is a reference atom belonging to the plane
+                o = atom_triplet[0]
+                normal = np.sign(np.dot((refProbe-o),normal))*normal #normal points towards the reference probe
+                n_origin = refProbe - np.dot(normal,(refProbe-o))*normal #projection of probe on the plane
+                n_end = refProbe + (np.dot(normal,(refProbe-o))+ offset)*normal
 
-            outFile.write("\n Normal: ({:.2f},{:.2f},{:.2f}), reference probe coord: ({:.2f},{:.2f},{:.2f})\
-            \n VMD--> draw cylinder {{{:.2f} {:.2f} {:.2f}}} {{{:.2f} {:.2f} {:.2f}}} radius 0.2 filled yes\n"
-            .format(*normal,*refProbe, *n_origin, *n_end))
+                outFile.write("\n Normal: ({:.2f},{:.2f},{:.2f}), reference probe coord: ({:.2f},{:.2f},{:.2f})\
+                \n VMD--> draw cylinder {{{:.2f} {:.2f} {:.2f}}} {{{:.2f} {:.2f} {:.2f}}} radius 0.2 filled yes\n"
+                .format(*normal,*refProbe, *n_origin, *n_end))
 
-            content.clear()
-            for r in IDmouthAtoms:
-                rname = resMap[r]['resName']
-                resid = resMap[r]['resNum']
-                try:
-                    rChain = resMap[r]['resChain']
-                except KeyError:
-                    rChain = 'A'
-                if((resid,rname,rChain) in content):
-                    continue
-                else:
-                    outFile.write('\n#'+ rname +"\t"+ str(resid))
-                    content.add((resid,rname,rChain))
-            c+=1
+                content.clear()
+                for r in IDmouthAtoms:
+                    rname = resMap[r]['resName']
+                    resid = resMap[r]['resNum']
+                    try:
+                        rChain = resMap[r]['resChain']
+                    except KeyError:
+                        rChain = 'A'
+                    if((resid,rname,rChain) in content):
+                        continue
+                    else:
+                        outFile.write('\n#'+ rname +"\t"+ str(resid))
+                        content.add((resid,rname,rChain))
+                c+=1
     
     outFile.close()
     outFileP.close()
@@ -1387,7 +1395,7 @@ def skeleton(pocket,prot,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=T
     plt.show(block=False)
 
     sref=200
-    sref2=1000
+    sref2=3000
     
     #f : figure container
     node=pocket['node']
@@ -1406,8 +1414,9 @@ def skeleton(pocket,prot,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=T
     else:
         subpockets=[]
 
-    largemouths = pocket['large_mouths']
+    largemouths = pocket['large_mouths'] # the starting spheres for entrance definition..
     allmouths = pocket['mouths']
+    # largemouths = filter radius applied to allmouths (which are already filtered by size threshold, whilst large_mouths no)
 
     if sizeThMouth:
         mouths = largemouths
@@ -1435,7 +1444,7 @@ def skeleton(pocket,prot,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=T
             #lat aggregation point to None reference coordinate
             xp=parent.getCentroid(weighted)
         ax.scatter(xl[0],xl[1],xl[2],marker="x",s=sref*cl,color='black')
-        ax.scatter(xp[0],xp[1],xp[2],marker="^",s=sref*cp)
+        ax.scatter(xp[0],xp[1],xp[2],marker=".",color='black',s=sref*cp)
         ax.plot([xl[0],xp[0]],[xl[1],xp[1]],[xl[2],xp[2]],'--',color='black')
         ax.scatter(xr[0],xr[1],xr[2],marker="x",s=sref*cr,color='black')
         ax.plot([xr[0],xp[0]],[xr[1],xp[1]],[xr[2],xp[2]],'--',color='black')
@@ -1463,7 +1472,7 @@ def skeleton(pocket,prot,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=T
         print("sub %d size=%d"%(sn,parent.count))
         cp = parent.count/norm
         xp = parent.getCentroid(weighted)
-        ax.scatter(xp[0],xp[1],xp[2],marker="*",s=sref2*cp, label="subpocket %d" %sn)
+        ax.scatter(xp[0],xp[1],xp[2],marker="*",s=sref2*cp, label="subpocket %d" %(sn+1))
 
 
     print("# entrances =", len(entrances))
@@ -1476,16 +1485,16 @@ def skeleton(pocket,prot,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=T
         size = e[4]
         print("entrance %d , r= %.2f , d = %.2f, size= %d" %(en+1,radius,depth,size))
         # label = "entrance %d "%en +"Av depth= "+str(depth) + "Eff radius= "+str(radius)
-        label = "entrance %d "%en +" Eff radius= "+str(radius)+"\n res="+str([r[1] for r in e[5]])
+        label = "entrance %d "%(en+1) +" Eff radius= "+str(radius)+"\n Entrance residues ="+str([r[1] for r in e[5]])
         if(plotSphere):
             #draw sphere 
             xs,ys,zs=drawSphere(ec[0], ec[1], ec[2], radius)
             ax.plot_wireframe(xs, ys, zs, linewidth = 0.2, color = 'gray')
         
         if(extendedProperties):
-            ax.scatter(ec[0],ec[1],ec[2],marker=".", s = 500, label=label)
+            ax.scatter(ec[0],ec[1],ec[2],marker="^",color="darkorange",linewidth=2, edgecolor='k', s = 200, label=label)
             enormal = e[6]
-            ax.quiver(ec[0],ec[1],ec[2],enormal[0],enormal[1],enormal[2],lw =2,color="orange",length = 0.5*depth)
+            ax.quiver(ec[0],ec[1],ec[2],enormal[0],enormal[1],enormal[2],lw =2,color="darkorange",length = 0.5*depth)
             # ax.plot_surface(xs, ys, zs,  rstride=4, cstride=4, color='g', linewidth=0, alpha=0.5)
 
     
@@ -1517,7 +1526,8 @@ def skeleton(pocket,prot,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=T
         # end= refProbe + np.dot(normal,(refProbe-o))*normal
         # arrow = end - refProbe
         arrow = normal
-        length = np.linalg.norm(refProbe -start) + depth
+        # length = np.linalg.norm(refProbe -start) + depth
+        length = depth/2
         # start = center 
 
         # ax.scatter(center[0],center[1],center[2],marker="D",s=sref2*cp, label=label)
@@ -1526,14 +1536,18 @@ def skeleton(pocket,prot,minsize=10,minsizeb = 10,weighted = False,sizeThMouth=T
             pass
         else:
             rdone.add(r)
-            handles.append(Line2D([0], [0], marker='o', color='w', label="mouth r="+str(r),markerfacecolor=cL[rmap[r]], mec="k",markersize=10*r/3.))
+            handles.append(Line2D([0], [0], marker='o', color='w', label="pseudo-mouth r="+str(r),markerfacecolor=cL[rmap[r]], mec="k",markersize=10*r/3.))
         
         ax.quiver(start[0],start[1],start[2],arrow[0],arrow[1],arrow[2],lw =1,color="blue",length = 0.5*length)
     
     if(filt_b):
         handles.append(Line2D([0], [0], marker='s', color='w', label="bottleneck event",markerfacecolor="red", markersize=sref/25))
-    ax.legend(handles=handles)
+    ax.legend(handles=handles,loc='upper center',fancybox = True,bbox_to_anchor=(0.5,1.02))
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    ax.set_zticklabels([])
 
+    # ax.legend(loc='upper center',fancybox = True)
     return
 
 def getEntrance(mouths,pwDist =False,extendedProperties=False,structure=None):
@@ -1545,15 +1559,16 @@ def getEntrance(mouths,pwDist =False,extendedProperties=False,structure=None):
 
     OBS: This is single linkage. Could be interesting to do it based on baricenter, but more involving..
 
-    TODO : 1. Add res types at entrances --> Useful for chemical characterization
-           2. Extract average normal <-- very interesting from user perspective
-           3. Do the same for bottlenecks (sometimes you can have very close bottlnecks mouths)
+    TODO : 1. Add res types at entrances --> Useful for chemical characterization OK
+           2. Extract average normal <-- very interesting from user perspective OK --> Weighted by radii
+           3. Do the same for bottlenecks ? (sometimes you can have very close bottlnecks mouths)
 
     Structure is the clustering.protein container
     """
     #1.  Indentification of clustered exit spheres and gathering in a container 
     # mouths = list(filter(lambda x : x[0].r > rmin , mouths))
     n = len(mouths)
+    # print("Original number of elements",n)
     X = np.empty((0,4))
     aggregationList={}
     #each one is a singleton
@@ -1700,13 +1715,15 @@ def getEntrance(mouths,pwDist =False,extendedProperties=False,structure=None):
             #unique normal x entrance
             normals=[]
             for s in a:
+                # radius = s[0].r
                 normal,atom_triplet = get_plane(atoms,s[0].t_atoms) 
                 o = atom_triplet[0] # o is a reference atom belonging to the plane
                 refProbe = s[0].coord
                 normal = np.sign(np.dot((refProbe-o),normal))*normal # orient it towards refProbe
                 normals.append(normal)
+                
             # print(normals)
-            av_normal=np.average(normals,axis=0)
+            av_normal=np.average(normals,weights = radii, axis=0)
             entrances.append((cm,d_av,r_eff,r_av,size,resEntrance,av_normal))
 
     return entrances

@@ -44,6 +44,10 @@ contact me if the link expired (the above prevous should always work, instead)
 ## Installation
 First check **Requirements**
 
+
+might need to install setuptools: pip3 install -U pip setuptools
+
+
 run within the folder *pip3 install .*
 
 CAREFUL: In a virtual environment you might force pip to install the package in the same directory (default behavior is to copy to another location) to not miss correct pointing to libraries. If the option -e is given (develop mode) it should prevent this problem to happen.
